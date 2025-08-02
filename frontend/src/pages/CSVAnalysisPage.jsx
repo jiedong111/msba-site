@@ -1,8 +1,8 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { Upload, FileText, BarChart3, AlertCircle, TrendingUp } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { uploadCSV, testConnection } from '../services/api';
+import { uploadCSV, testConnection, getModels } from '../services/api';
 import FadeContent from '../components/ui/FadeContent';
 import AnimatedContent from '../components/ui/AnimatedContent';
 import GlassPanel from '../components/ui/GlassPanel';
@@ -10,6 +10,7 @@ import GlassPanel from '../components/ui/GlassPanel';
 export default function CSVAnalysisPage() {
   const [file, setFile] = useState(null);
   const [modelName, setModelName] = useState('model');
+  const [availableModels, setAvailableModels] = useState([]);
   const [loading, setLoading] = useState(false);
   const [results, setResults] = useState(null);
   const [error, setError] = useState(null);
@@ -29,6 +30,22 @@ export default function CSVAnalysisPage() {
     multiple: false,
   });
 
+  // Fetch available models on component mount
+  useEffect(() => {
+    const fetchModels = async () => {
+      try {
+        const modelData = await getModels();
+        if (modelData?.available_models && modelData.available_models.length > 0) {
+          setAvailableModels(modelData.available_models);
+          setModelName(modelData.available_models[0]); // Set first model as default
+        }
+      } catch (err) {
+        console.error('Failed to fetch models:', err);
+      }
+    };
+    fetchModels();
+  }, []);
+
   const handleConnectionTest = async () => {
     try {
       await testConnection();
@@ -46,6 +63,7 @@ export default function CSVAnalysisPage() {
 
     try {
       const data = await uploadCSV(file, modelName);
+      console.log('📊 Analysis result:', data);
       setResults(data);
     } catch (err) {
       setError(err.response?.data?.detail || 'Failed to analyze CSV');
@@ -55,9 +73,9 @@ export default function CSVAnalysisPage() {
   };
 
   const prepareChartData = () => {
-    if (!results?.predictions) return [];
+    if (!results?.chart_data?.predictions) return [];
     
-    return results.predictions.slice(0, 50).map((value, index) => ({
+    return results.chart_data.predictions.map((value, index) => ({
       index: index + 1,
       value: value,
     }));
@@ -99,16 +117,15 @@ export default function CSVAnalysisPage() {
             <AnimatedContent distance={20} direction="up">
               <GlassPanel style={{ padding: '2rem' }}>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-                  {/* Model Name Input */}
+                  {/* Model Selection */}
                   <div>
                     <label style={{
                       display: 'block',
                       color: 'var(--color-gray-400)',
                       fontSize: '0.875rem',
                       marginBottom: '0.5rem'
-                    }}>Model Name</label>
-                    <input
-                      type="text"
+                    }}>Select Model</label>
+                    <select
                       value={modelName}
                       onChange={(e) => setModelName(e.target.value)}
                       style={{
@@ -119,10 +136,29 @@ export default function CSVAnalysisPage() {
                         borderRadius: '0.75rem',
                         color: 'var(--color-gray-100)',
                         fontSize: '0.875rem',
-                        outline: 'none'
+                        outline: 'none',
+                        cursor: 'pointer'
                       }}
-                      placeholder="Enter model name (e.g., model)"
-                    />
+                    >
+                      {availableModels.length === 0 ? (
+                        <option value="model">Loading models...</option>
+                      ) : (
+                        availableModels.map((model) => (
+                          <option key={model} value={model}>
+                            {model.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                          </option>
+                        ))
+                      )}
+                    </select>
+                    {modelName && (
+                      <p style={{
+                        marginTop: '0.5rem',
+                        fontSize: '0.75rem',
+                        color: 'var(--color-gray-500)'
+                      }}>
+                        Using {modelName.replace(/_/g, ' ')} for predictions
+                      </p>
+                    )}
                   </div>
 
                   {/* File Upload */}
@@ -218,9 +254,9 @@ export default function CSVAnalysisPage() {
           {/* Stats section - 1 col */}
           <div className="space-y-6">
             {results && [
-              { label: 'Total Predictions', value: results.summary_stats.total_predictions },
-              { label: 'Mean', value: results.summary_stats.mean_prediction.toFixed(2) },
-              { label: 'Std Dev', value: results.summary_stats.std_prediction.toFixed(2) }
+              { label: 'Mean Score', value: results.summary_stats.mean.toFixed(1), color: 'text-violet-400' },
+              { label: 'Outliers', value: `${results.insights.outlier_percentage.toFixed(1)}%`, color: 'text-orange-400' },
+              { label: 'Distribution', value: results.insights.distribution_shape, color: 'text-green-400' }
             ].map((stat, i) => (
               <AnimatedContent 
                 key={i} 
@@ -228,13 +264,20 @@ export default function CSVAnalysisPage() {
                 direction="up" 
                 delay={i * 50}
               >
-                <GlassPanel className="p-6">
-                  <div className="flex items-center justify-between">
+                <GlassPanel style={{ padding: '1.5rem' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                     <div>
-                      <p className="text-gray-500 text-sm">{stat.label}</p>
-                      <p className="text-2xl font-light text-gray-100 mt-1">{stat.value}</p>
+                      <p style={{ color: 'var(--color-gray-500)', fontSize: '0.875rem' }}>{stat.label}</p>
+                      <p style={{ 
+                        fontSize: '1.5rem', 
+                        fontWeight: '300', 
+                        color: stat.color === 'text-violet-400' ? 'var(--color-violet-400)' :
+                               stat.color === 'text-orange-400' ? '#fb923c' : 
+                               '#4ade80',
+                        marginTop: '0.25rem' 
+                      }}>{stat.value}</p>
                     </div>
-                    <TrendingUp className="w-5 h-5 text-green-400/60" />
+                    <TrendingUp style={{ width: '1.25rem', height: '1.25rem', color: 'rgba(74, 222, 128, 0.6)' }} />
                   </div>
                 </GlassPanel>
               </AnimatedContent>
@@ -242,13 +285,135 @@ export default function CSVAnalysisPage() {
           </div>
         </div>
 
-        {/* Charts */}
+        {/* Charts and Insights */}
         {results && (
-          <div className="mt-12">
+          <div style={{ marginTop: '3rem', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+            
+            {/* Model Info Panel */}
+            <AnimatedContent distance={20} direction="up" delay={150}>
+              <GlassPanel style={{ padding: '2rem' }}>
+                <h2 style={{ 
+                  fontSize: '1.25rem', 
+                  fontWeight: '500', 
+                  color: 'var(--color-gray-100)', 
+                  marginBottom: '1rem' 
+                }}>
+                  Model Information
+                </h2>
+                <div style={{ marginBottom: '1rem' }}>
+                  <p style={{ color: 'var(--color-gray-400)', fontSize: '0.875rem', marginBottom: '0.5rem' }}>
+                    Model Used: <span style={{ color: 'var(--color-violet-400)' }}>{results.model_used.replace(/_/g, ' ').toUpperCase()}</span>
+                  </p>
+                  <p style={{ color: 'var(--color-gray-500)', fontSize: '0.75rem' }}>
+                    Analysis performed on {results.summary_stats.count} data points
+                  </p>
+                </div>
+              </GlassPanel>
+            </AnimatedContent>
+            
+            {/* Key Insights Panel */}
             <AnimatedContent distance={20} direction="up" delay={200}>
-              <GlassPanel className="p-8">
-                <h2 className="text-xl font-medium text-gray-100 mb-6">Prediction Distribution</h2>
-                <div className="h-80">
+              <GlassPanel style={{ padding: '2rem' }}>
+                <h2 style={{ 
+                  fontSize: '1.25rem', 
+                  fontWeight: '500', 
+                  color: 'var(--color-gray-100)', 
+                  marginBottom: '1.5rem' 
+                }}>
+                  Analysis Insights
+                </h2>
+                
+                {/* Risk Segments */}
+                <div style={{ marginBottom: '2rem' }}>
+                  <h3 style={{ 
+                    fontSize: '0.875rem', 
+                    fontWeight: '500', 
+                    color: 'var(--color-gray-300)', 
+                    marginBottom: '0.75rem' 
+                  }}>
+                    Risk Segments
+                  </h3>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                    {Object.entries(results.insights.risk_segments).map(([level, data]) => (
+                      <div key={level} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <span style={{ 
+                          textTransform: 'capitalize', 
+                          color: 'var(--color-gray-400)',
+                          fontSize: '0.875rem'
+                        }}>
+                          {level} Risk ({data.count} items)
+                        </span>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                          <div style={{ 
+                            width: '8rem', 
+                            backgroundColor: 'rgba(255, 255, 255, 0.1)', 
+                            borderRadius: '9999px', 
+                            height: '0.5rem' 
+                          }}>
+                            <div style={{
+                              height: '100%',
+                              borderRadius: '9999px',
+                              width: `${data.percentage}%`,
+                              backgroundColor: level === 'low' ? '#10b981' : 
+                                              level === 'medium' ? '#f59e0b' : '#ef4444'
+                            }} />
+                          </div>
+                          <span style={{ 
+                            fontSize: '0.875rem', 
+                            color: 'var(--color-gray-500)', 
+                            width: '3rem', 
+                            textAlign: 'right' 
+                          }}>
+                            {data.percentage.toFixed(0)}%
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Percentiles */}
+                <div>
+                  <h3 style={{ 
+                    fontSize: '0.875rem', 
+                    fontWeight: '500', 
+                    color: 'var(--color-gray-300)', 
+                    marginBottom: '0.75rem' 
+                  }}>
+                    Percentile Breakdown
+                  </h3>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                    {Object.entries(results.insights.percentiles).map(([percentile, value]) => (
+                      <div key={percentile} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <span style={{ color: 'var(--color-gray-400)', fontSize: '0.875rem' }}>
+                          {percentile} of predictions are below
+                        </span>
+                        <span style={{ 
+                          fontSize: '1rem', 
+                          fontWeight: '500', 
+                          color: 'var(--color-gray-100)' 
+                        }}>
+                          {value.toFixed(2)}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </GlassPanel>
+            </AnimatedContent>
+
+            {/* Distribution Chart */}
+            <AnimatedContent distance={20} direction="up" delay={250}>
+              <GlassPanel style={{ padding: '2rem' }}>
+                <h2 style={{ 
+                  fontSize: '1.25rem', 
+                  fontWeight: '500', 
+                  color: 'var(--color-gray-100)', 
+                  marginBottom: '1.5rem' 
+                }}>
+                  Prediction Distribution
+                </h2>
+                <div style={{ height: '20rem' }}>
                   <ResponsiveContainer width="100%" height="100%">
                     <LineChart data={prepareChartData()}>
                       <CartesianGrid 

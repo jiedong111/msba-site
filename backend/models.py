@@ -8,9 +8,12 @@ class CSVAnalysisRequest(BaseModel):
     
 
 class CSVAnalysisResponse(BaseModel):
+    model_used: str
     predictions: List[float]
     summary_stats: Dict[str, Any]
-    charts: Dict[str, Any]
+    insights: Dict[str, Any]
+    chart_data: Dict[str, Any]
+    model_performance: Optional[Dict[str, Any]] = None
     timestamp: str
     
 

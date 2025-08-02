@@ -141,6 +141,34 @@ async def analyze_sentiment(
 async def health_check():
     return {"status": "healthy", "timestamp": pd.Timestamp.now()}
 
+@app.get("/api/models")
+async def get_models():
+    """Get information about available models"""
+    try:
+        model_info = analysis_service.get_model_info()
+        return model_info
+    except Exception as e:
+        logger.error(f"❌ Error getting model info: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error getting model info: {str(e)}")
+
+@app.post("/api/train-models")
+async def train_models():
+    """Train all ML models"""
+    try:
+        from train_ml_models import train_ml_models
+        logger.info("🚀 Starting model training...")
+        model_info = train_ml_models()
+        logger.info("✅ Model training completed")
+        return {
+            "status": "success",
+            "message": "Models trained successfully",
+            "model_info": model_info,
+            "timestamp": pd.Timestamp.now().isoformat()
+        }
+    except Exception as e:
+        logger.error(f"❌ Error training models: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error training models: {str(e)}")
+
 @app.post("/api/test-upload")
 async def test_upload(file: UploadFile = File(...)):
     logger.info(f"🧪 Test upload - File: {file.filename}, Size: {file.size}")

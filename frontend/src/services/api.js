@@ -109,4 +109,17 @@ export const testProxy = async () => {
   }
 };
 
+// Get available models
+export const getModels = async () => {
+  try {
+    console.log('🔍 Fetching available models...');
+    const response = await api.get('/api/models');
+    console.log('✅ Models fetched successfully:', response.data);
+    return response.data;
+  } catch (error) {
+    console.error('❌ Failed to fetch models:', error.message);
+    throw error;
+  }
+};
+
 export default api;
