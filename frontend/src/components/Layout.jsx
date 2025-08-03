@@ -1,6 +1,6 @@
 import { Outlet, Link, useLocation } from 'react-router-dom';
-import { BarChart3, Brain, Home } from 'lucide-react';
-import Aurora from './ui/Aurora';
+import { BarChart3, Brain, Home, Calculator } from 'lucide-react';
+import SimpleParticles from './ui/SimpleParticles';
 import GlassPanel from './ui/GlassPanel';
 
 export default function Layout() {
@@ -10,6 +10,7 @@ export default function Layout() {
     { path: '/', label: 'Home', icon: Home },
     { path: '/csv-analysis', label: 'CSV Analysis', icon: BarChart3 },
     { path: '/sentiment-analysis', label: 'Sentiment Analysis', icon: Brain },
+    { path: '/risk-calculator', label: 'Risk Calculator', icon: Calculator },
   ];
 
   return (
@@ -19,7 +20,7 @@ export default function Layout() {
       overflow: 'hidden',
       backgroundColor: 'black'
     }}>
-      {/* Aurora Background - fills entire viewport */}
+      {/* SimpleParticles Background - fills entire viewport */}
       <div style={{
         position: 'fixed',
         top: 0,
@@ -30,7 +31,7 @@ export default function Layout() {
         height: '100%',
         zIndex: 1
       }}>
-        <Aurora />
+        <SimpleParticles />
       </div>
       
       {/* Content Layer - above background */}

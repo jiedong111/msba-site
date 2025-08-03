@@ -3,6 +3,7 @@ import Layout from './components/Layout';
 import HomePage from './pages/HomePage';
 import CSVAnalysisPage from './pages/CSVAnalysisPage';
 import SentimentAnalysisPage from './pages/SentimentAnalysisPage';
+import RiskCalculatorPage from './pages/RiskCalculatorPage';
 
 function App() {
   return (
@@ -13,6 +14,7 @@ function App() {
             <Route index element={<HomePage />} />
             <Route path="csv-analysis" element={<CSVAnalysisPage />} />
             <Route path="sentiment-analysis" element={<SentimentAnalysisPage />} />
+            <Route path="risk-calculator" element={<RiskCalculatorPage />} />
           </Route>
         </Routes>
       </Router>

@@ -295,6 +295,316 @@ class AnalysisService:
         }
         
 
+class RiskService:
+    def __init__(self):
+        self.model_service = ModelService()
+        
+    def get_feature_definitions(self) -> List[Dict[str, Any]]:
+        """Get feature definitions for the risk calculator"""
+        return [
+            {
+                "name": "Number of Investors",
+                "display_name": "Number of Investors",
+                "type": "slider",
+                "min_value": 0,
+                "max_value": 20,
+                "default_value": 2,
+                "step": 1,
+                "description": "Total number of investors backing the startup"
+            },
+            {
+                "name": "Trademarks Registered",
+                "display_name": "Trademarks Registered",
+                "type": "slider",
+                "min_value": 0,
+                "max_value": 10,
+                "default_value": 1,
+                "step": 1,
+                "description": "Number of registered trademarks"
+            },
+            {
+                "name": "Number of Events",
+                "display_name": "Number of Events",
+                "type": "slider",
+                "min_value": 0,
+                "max_value": 50,
+                "default_value": 5,
+                "step": 1,
+                "description": "Number of events or activities the startup has participated in"
+            },
+            {
+                "name": "Financing for entrepreneurs",
+                "display_name": "Financing Score",
+                "type": "slider",
+                "min_value": 1.0,
+                "max_value": 7.0,
+                "default_value": 4.5,
+                "step": 0.1,
+                "description": "Access to financing for entrepreneurs (1-7 scale)"
+            },
+            {
+                "name": "Governmental support and policies",
+                "display_name": "Government Support",
+                "type": "slider",
+                "min_value": 1.0,
+                "max_value": 7.0,
+                "default_value": 4.0,
+                "step": 0.1,
+                "description": "Level of governmental support and policies (1-7 scale)"
+            },
+            {
+                "name": "R&D transfer",
+                "display_name": "R&D Transfer",
+                "type": "slider",
+                "min_value": 1.0,
+                "max_value": 7.0,
+                "default_value": 4.0,
+                "step": 0.1,
+                "description": "Research and development transfer effectiveness (1-7 scale)"
+            },
+            {
+                "name": "Commercial and professional infrastructure",
+                "display_name": "Infrastructure",
+                "type": "slider",
+                "min_value": 1.0,
+                "max_value": 7.0,
+                "default_value": 5.0,
+                "step": 0.1,
+                "description": "Quality of commercial and professional infrastructure (1-7 scale)"
+            },
+            {
+                "name": "Internal market dynamics",
+                "display_name": "Market Dynamics",
+                "type": "slider",
+                "min_value": 1.0,
+                "max_value": 7.0,
+                "default_value": 4.5,
+                "step": 0.1,
+                "description": "Internal market dynamics score (1-7 scale)"
+            },
+            {
+                "name": "Diversity Spotlight Dummy",
+                "display_name": "Diversity Spotlight",
+                "type": "switch",
+                "default_value": False,
+                "description": "Whether the startup has diversity spotlight recognition"
+            },
+            {
+                "name": "Repeat_Founder",
+                "display_name": "Repeat Founder",
+                "type": "switch",
+                "default_value": False,
+                "description": "Whether the founder has started companies before"
+            },
+            {
+                "name": "High Tech Dummy",
+                "display_name": "High-Tech Startup",
+                "type": "switch",
+                "default_value": True,
+                "description": "Whether this is a high-tech startup"
+            },
+            {
+                "name": "America Dummy",
+                "display_name": "Americas Region",
+                "type": "switch",
+                "default_value": True,
+                "description": "Startup is located in the Americas"
+            },
+            {
+                "name": "Asia Dummy",
+                "display_name": "Asia Region",
+                "type": "switch",
+                "default_value": False,
+                "description": "Startup is located in Asia"
+            },
+            {
+                "name": "Middle East Dummy",
+                "display_name": "Middle East Region",
+                "type": "switch",
+                "default_value": False,
+                "description": "Startup is located in the Middle East"
+            }
+        ]
+    
+    def get_default_values(self) -> Dict[str, Any]:
+        """Get default values for all features"""
+        features = self.get_feature_definitions()
+        defaults = {}
+        for feature in features:
+            defaults[feature["name"]] = feature["default_value"]
+        
+        # Add other required features with defaults
+        defaults.update({
+            "Taxes and bureaucracy": 3.5,
+            "Governmental programs": 4.5,
+            "Internal market openness": 5.0,
+            "Cultural and social norms": 4.5,
+            "Food and Restaurant Dummy": False
+        })
+        
+        return defaults
+    
+    def calculate_risk(self, feature_values: Dict[str, Any], model_name: str = "xgboost_model") -> Dict[str, Any]:
+        """Calculate risk score from feature values"""
+        
+        # Get default values and update with provided values
+        full_features = self.get_default_values()
+        full_features.update(feature_values)
+        
+        # Convert boolean values to integers
+        for key, value in full_features.items():
+            if isinstance(value, bool):
+                full_features[key] = int(value)
+        
+        # Create DataFrame
+        df = pd.DataFrame([full_features])
+        
+        # Get probability prediction instead of binary prediction
+        try:
+            model = self.model_service.load_model(model_name)
+            processed_df = self.model_service.preprocess_data(df, model_name)
+            
+            # Use predict_proba if available (for probability scores)
+            if hasattr(model, 'predict_proba'):
+                probabilities = model.predict_proba(processed_df)
+                # Get probability of failure (class 1)
+                risk_score = float(probabilities[0][1]) if probabilities.shape[1] > 1 else float(probabilities[0][0])
+                logger.info(f"📊 Probability prediction: {probabilities[0]} -> Risk score: {risk_score:.4f}")
+            else:
+                # Fallback to binary prediction
+                predictions = model.predict(processed_df)
+                risk_score = float(predictions[0])
+                logger.info(f"📊 Binary prediction: {risk_score}")
+                
+        except Exception as e:
+            logger.error(f"❌ Error getting probability prediction: {e}")
+            # Fallback to original method
+            predictions = self.model_service.predict(model_name, df)
+            risk_score = float(predictions[0])
+        
+        # Determine risk level based on probability
+        if risk_score < 0.3:
+            risk_level = "low"
+        elif risk_score < 0.7:
+            risk_level = "medium"
+        else:
+            risk_level = "high"
+        
+        # Generate key factors (simplified)
+        key_factors = self._get_key_factors(full_features, risk_score)
+        
+        # Generate recommendations
+        recommendations = self._get_recommendations(risk_level, full_features)
+        
+        # Calculate confidence based on how close to decision boundary
+        # Higher confidence when probability is closer to 0 or 1
+        confidence = max(abs(risk_score - 0.5) * 2, 0.6)  # Scale 0.5-1.0 to 0.6-1.0
+        
+        return {
+            "risk_score": risk_score,
+            "risk_level": risk_level,
+            "confidence": confidence,
+            "key_factors": key_factors,
+            "recommendations": recommendations
+        }
+    
+    def _get_key_factors(self, features: Dict[str, Any], risk_score: float) -> List[Dict[str, Any]]:
+        """Identify key risk factors based on feature values"""
+        factors = []
+        
+        # Check various risk factors with their thresholds
+        risk_checks = [
+            {
+                "condition": features.get("Number of Investors", 0) < 2,
+                "factor": "Low Investor Count",
+                "impact": "high",
+                "description": "Having fewer investors may indicate limited validation and funding"
+            },
+            {
+                "condition": features.get("Repeat_Founder", 0) == 0,
+                "factor": "First-time Founder", 
+                "impact": "medium",
+                "description": "First-time founders may lack entrepreneurial experience"
+            },
+            {
+                "condition": features.get("Financing for entrepreneurs", 4.5) < 3.5,
+                "factor": "Poor Access to Financing",
+                "impact": "high", 
+                "description": "Limited access to financing increases failure risk"
+            },
+            {
+                "condition": features.get("Trademarks Registered", 1) == 0,
+                "factor": "No Intellectual Property",
+                "impact": "medium",
+                "description": "Lack of registered trademarks may indicate weak IP protection"
+            },
+            {
+                "condition": features.get("Number of Events", 5) < 3,
+                "factor": "Low Market Activity",
+                "impact": "medium", 
+                "description": "Limited participation in events may indicate poor market engagement"
+            },
+            {
+                "condition": features.get("High Tech Dummy", 1) == 0,
+                "factor": "Non-Tech Sector",
+                "impact": "low",
+                "description": "Non-tech startups may face different scaling challenges"
+            },
+            {
+                "condition": features.get("Governmental support and policies", 4.0) < 3.0,
+                "factor": "Poor Government Support",
+                "impact": "medium",
+                "description": "Limited governmental support may hinder growth"
+            },
+            {
+                "condition": features.get("R&D transfer", 4.0) < 3.0,
+                "factor": "Weak R&D Transfer",
+                "impact": "medium",
+                "description": "Poor R&D transfer may limit innovation capabilities"
+            }
+        ]
+        
+        # Add factors that meet their conditions
+        for check in risk_checks:
+            if check["condition"]:
+                factors.append({
+                    "factor": check["factor"],
+                    "impact": check["impact"], 
+                    "description": check["description"]
+                })
+        
+        # Sort by impact priority (high > medium > low)
+        impact_order = {"high": 3, "medium": 2, "low": 1}
+        factors.sort(key=lambda x: impact_order.get(x["impact"], 0), reverse=True)
+        
+        return factors[:5]  # Return top 5
+    
+    def _get_recommendations(self, risk_level: str, features: Dict[str, Any]) -> List[str]:
+        """Generate recommendations based on risk level and features"""
+        recommendations = []
+        
+        if risk_level == "high":
+            recommendations.extend([
+                "Consider seeking additional investors to validate your business model",
+                "Focus on improving access to financing and funding sources",
+                "Strengthen your business fundamentals and market positioning"
+            ])
+        elif risk_level == "medium":
+            recommendations.extend([
+                "Continue building investor relationships and market validation",
+                "Consider strategic partnerships to reduce operational risks",
+                "Monitor key performance indicators closely"
+            ])
+        else:
+            recommendations.extend([
+                "Maintain current momentum and continue execution",
+                "Consider scaling operations and market expansion",
+                "Focus on sustainable growth and profitability"
+            ])
+        
+        return recommendations[:3]
+
+
 class SentimentService:
     def __init__(self):
         if settings.openai_api_key:

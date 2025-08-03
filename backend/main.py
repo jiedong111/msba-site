@@ -8,9 +8,10 @@ from typing import Dict, Any
 
 from models import (
     CSVAnalysisRequest, CSVAnalysisResponse,
-    SentimentAnalysisRequest, SentimentAnalysisResponse
+    SentimentAnalysisRequest, SentimentAnalysisResponse,
+    RiskCalculateRequest, RiskCalculateResponse, RiskFeature
 )
-from services import AnalysisService, SentimentService
+from services import AnalysisService, SentimentService, RiskService
 from config import settings
 
 # Configure logging
@@ -46,6 +47,7 @@ async def log_requests(request, call_next):
 # Initialize services
 analysis_service = AnalysisService()
 sentiment_service = SentimentService()
+risk_service = RiskService()
 
 
 @app.get("/")
@@ -179,6 +181,60 @@ async def test_upload(file: UploadFile = File(...)):
     except Exception as e:
         logger.error(f"❌ Test upload error: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/risk/calculate", response_model=RiskCalculateResponse)
+async def calculate_risk(request: RiskCalculateRequest) -> Dict[str, Any]:
+    """Calculate startup failure risk based on feature values"""
+    logger.info(f"🎯 Risk calculation request - Model: {request.model_name}")
+    
+    try:
+        result = risk_service.calculate_risk(
+            feature_values=request.feature_values,
+            model_name=request.model_name
+        )
+        logger.info(f"📊 Risk calculated: {result['risk_score']:.3f} ({result['risk_level']})")
+        return result
+        
+    except Exception as e:
+        logger.error(f"❌ Risk calculation error: {str(e)}")
+        logger.error(f"🔍 Full traceback: {traceback.format_exc()}")
+        raise HTTPException(status_code=500, detail=f"Risk calculation failed: {str(e)}")
+
+@app.get("/api/risk/features")
+async def get_risk_features():
+    """Get feature definitions for the risk calculator"""
+    try:
+        features = risk_service.get_feature_definitions()
+        logger.info(f"📋 Returning {len(features)} feature definitions")
+        return {"features": features}
+        
+    except Exception as e:
+        logger.error(f"❌ Error getting risk features: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error getting features: {str(e)}")
+
+@app.get("/api/risk/models")
+async def get_risk_models():
+    """Get available models for risk calculation"""
+    try:
+        model_info = analysis_service.get_model_info()
+        available_models = model_info.get("available_models", [])
+        
+        # Format for risk calculator
+        models = []
+        for model_name in available_models:
+            display_name = model_name.replace("_", " ").title()
+            models.append({
+                "name": model_name,
+                "display_name": display_name,
+                "accuracy": 0.85  # Mock accuracy for now
+            })
+        
+        logger.info(f"🤖 Returning {len(models)} available models")
+        return {"models": models}
+        
+    except Exception as e:
+        logger.error(f"❌ Error getting risk models: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error getting models: {str(e)}")
 
 
 if __name__ == "__main__":

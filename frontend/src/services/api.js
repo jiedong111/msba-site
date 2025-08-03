@@ -122,4 +122,44 @@ export const getModels = async () => {
   }
 };
 
+// Risk Calculator API functions
+export const calculateRisk = async (featureValues, modelName = 'xgboost_model') => {
+  try {
+    console.log('🎯 Calculating risk...', { featureValues, modelName });
+    const response = await api.post('/api/risk/calculate', {
+      feature_values: featureValues,
+      model_name: modelName
+    });
+    console.log('✅ Risk calculated successfully:', response.data);
+    return response.data;
+  } catch (error) {
+    console.error('❌ Failed to calculate risk:', error.message);
+    throw error;
+  }
+};
+
+export const getRiskFeatures = async () => {
+  try {
+    console.log('🔍 Fetching risk features...');
+    const response = await api.get('/api/risk/features');
+    console.log('✅ Risk features fetched successfully:', response.data);
+    return response.data;
+  } catch (error) {
+    console.error('❌ Failed to fetch risk features:', error.message);
+    throw error;
+  }
+};
+
+export const getRiskModels = async () => {
+  try {
+    console.log('🔍 Fetching risk models...');
+    const response = await api.get('/api/risk/models');
+    console.log('✅ Risk models fetched successfully:', response.data);
+    return response.data;
+  } catch (error) {
+    console.error('❌ Failed to fetch risk models:', error.message);
+    throw error;
+  }
+};
+
 export default api;
