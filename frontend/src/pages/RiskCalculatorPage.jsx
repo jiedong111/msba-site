@@ -35,6 +35,11 @@ export default function RiskCalculatorPage() {
   // Debounce feature values to prevent too many API calls
   const debouncedFeatureValues = useDebounce(featureValues, 300);
 
+  // Utility function to get feature value with proper fallback
+  const getFeatureValue = (featureName, defaultValue) => {
+    return featureValues[featureName] !== undefined ? featureValues[featureName] : defaultValue;
+  };
+
   // Load features and models on mount
   useEffect(() => {
     const loadData = async () => {
@@ -86,10 +91,28 @@ export default function RiskCalculatorPage() {
   };
 
   const handleFeatureChange = (featureName, value) => {
-    setFeatureValues(prev => ({
-      ...prev,
-      [featureName]: value
-    }));
+    // Validate that the value is within bounds for slider features
+    const feature = features.find(f => f.name === featureName);
+    if (feature && feature.type === 'slider') {
+      const min = feature.min_value;
+      const max = feature.max_value;
+      const step = feature.step || 1;
+      
+      // Ensure value is within bounds
+      const clampedValue = Math.max(min, Math.min(max, value));
+      // Round to step precision
+      const roundedValue = Math.round(clampedValue / step) * step;
+      
+      setFeatureValues(prev => ({
+        ...prev,
+        [featureName]: roundedValue
+      }));
+    } else {
+      setFeatureValues(prev => ({
+        ...prev,
+        [featureName]: value
+      }));
+    }
   };
 
   const setPreset = (presetType) => {
@@ -98,14 +121,19 @@ export default function RiskCalculatorPage() {
         'Number of Investors': 8,
         'Trademarks Registered': 5,
         'Number of Events': 25,
-        'Financing for entrepreneurs': 6.5,
-        'Governmental support and policies': 6.0,
-        'R&D transfer': 6.0,
-        'Commercial and professional infrastructure': 6.5,
-        'Internal market dynamics': 6.0,
+        'Financing for entrepreneurs': 8.0,
+        'Governmental support and policies': 8.0,
+        'Taxes and bureaucracy': 7.0,
+        'Governmental programs': 8.0,
+        'R&D transfer': 8.0,
+        'Commercial and professional infrastructure': 8.0,
+        'Internal market dynamics': 8.0,
+        'Internal market openness': 8.0,
+        'Cultural and social norms': 8.0,
         'Diversity Spotlight Dummy': true,
         'Repeat_Founder': true,
         'High Tech Dummy': true,
+        'Food and Restaurant Dummy': false,
         'America Dummy': true,
         'Asia Dummy': false,
         'Middle East Dummy': false
@@ -114,14 +142,19 @@ export default function RiskCalculatorPage() {
         'Number of Investors': 3,
         'Trademarks Registered': 2,
         'Number of Events': 10,
-        'Financing for entrepreneurs': 4.5,
-        'Governmental support and policies': 4.0,
-        'R&D transfer': 4.0,
+        'Financing for entrepreneurs': 5.0,
+        'Governmental support and policies': 5.0,
+        'Taxes and bureaucracy': 5.0,
+        'Governmental programs': 5.0,
+        'R&D transfer': 5.0,
         'Commercial and professional infrastructure': 5.0,
-        'Internal market dynamics': 4.5,
+        'Internal market dynamics': 5.0,
+        'Internal market openness': 5.0,
+        'Cultural and social norms': 5.0,
         'Diversity Spotlight Dummy': false,
         'Repeat_Founder': false,
         'High Tech Dummy': true,
+        'Food and Restaurant Dummy': false,
         'America Dummy': true,
         'Asia Dummy': false,
         'Middle East Dummy': false
@@ -131,13 +164,18 @@ export default function RiskCalculatorPage() {
         'Trademarks Registered': 0,
         'Number of Events': 1,
         'Financing for entrepreneurs': 2.0,
-        'Governmental support and policies': 2.5,
-        'R&D transfer': 2.5,
-        'Commercial and professional infrastructure': 3.0,
-        'Internal market dynamics': 3.0,
+        'Governmental support and policies': 2.0,
+        'Taxes and bureaucracy': 3.0,
+        'Governmental programs': 2.0,
+        'R&D transfer': 2.0,
+        'Commercial and professional infrastructure': 2.0,
+        'Internal market dynamics': 2.0,
+        'Internal market openness': 2.0,
+        'Cultural and social norms': 2.0,
         'Diversity Spotlight Dummy': false,
         'Repeat_Founder': false,
         'High Tech Dummy': false,
+        'Food and Restaurant Dummy': true,
         'America Dummy': false,
         'Asia Dummy': true,
         'Middle East Dummy': false
@@ -170,10 +208,10 @@ export default function RiskCalculatorPage() {
       
       <div className="relative z-10">
         <FadeContent blur={false} duration={800}>
-          <div className="px-6 py-8 max-w-7xl mx-auto">
+          <div className="px-6 py-6 pb-8 max-w-7xl mx-auto">
             {/* Header */}
-            <div className="mb-12">
-              <h1 className="text-4xl font-light text-gray-100 mb-2">
+            <div className="mb-4">
+              <h1 className="text-3xl font-light text-gray-100 mb-1">
                 Startup Risk Calculator
               </h1>
               <p className="text-gray-500 text-sm">
@@ -182,72 +220,114 @@ export default function RiskCalculatorPage() {
             </div>
 
             {/* Main Layout */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
               
               {/* Left Column - Controls */}
-              <div className="lg:col-span-2 space-y-6">
+              <div className="lg:col-span-2 flex flex-col space-y-4">
 
-                {/* Model Selection */}
-                <AnimatedContent distance={20} direction="up">
-                  <GlassPanel className="p-6">
-                    <h2 className="text-xl font-medium text-gray-100 mb-4 flex items-center">
-                      <Calculator className="w-5 h-5 mr-2 text-violet-400" />
-                      Model Selection
-                    </h2>
-                    <select
-                      value={selectedModel}
-                      onChange={(e) => setSelectedModel(e.target.value)}
-                      className="w-full px-4 py-2.5 bg-white/[0.02] border border-white/[0.05] rounded-xl text-gray-100 placeholder-gray-600 focus:outline-none focus:border-violet-500/30 focus:bg-white/[0.03] transition-all duration-200 text-sm"
-                    >
-                      {models.map(model => (
-                        <option key={model.name} value={model.name}>
-                          {model.display_name}
-                        </option>
-                      ))}
-                    </select>
-                  </GlassPanel>
-                </AnimatedContent>
+                {/* Top Controls - Fixed */}
+                <div className="space-y-4 flex-shrink-0">
+                  {/* Model Selection */}
+                  <AnimatedContent distance={20} direction="up">
+                    <GlassPanel className="p-4">
+                      <h2 className="text-lg font-medium text-gray-100 mb-3 flex items-center">
+                        <Calculator className="w-4 h-4 mr-2 text-violet-400" />
+                        Model Selection
+                      </h2>
+                      <select
+                        value={selectedModel}
+                        onChange={(e) => setSelectedModel(e.target.value)}
+                        className="w-full px-3 py-2 bg-black/50 border border-white/[0.05] rounded-lg text-gray-100 placeholder-gray-600 focus:outline-none focus:border-violet-500/30 focus:bg-black/70 transition-all duration-200 text-sm"
+                      >
+                        {models.map(model => (
+                          <option key={model.name} value={model.name} className="bg-black text-gray-100">
+                            {model.display_name}
+                          </option>
+                        ))}
+                      </select>
+                    </GlassPanel>
+                  </AnimatedContent>
 
-                {/* Preset Buttons */}
-                <AnimatedContent distance={20} direction="up" delay={50}>
-                  <GlassPanel className="p-6">
-                    <h3 className="text-lg font-medium text-gray-200 mb-4">Quick Presets</h3>
-                    <div className="grid grid-cols-3 gap-3">
-                      <button
-                        onClick={() => setPreset('low-risk')}
-                        className="px-4 py-2 bg-green-500/10 hover:bg-green-500/20 border border-green-500/20 text-green-400 rounded-xl transition-all duration-200 text-sm font-medium"
-                      >
-                        Low Risk
-                      </button>
-                      <button
-                        onClick={() => setPreset('average')}
-                        className="px-4 py-2 bg-yellow-500/10 hover:bg-yellow-500/20 border border-yellow-500/20 text-yellow-400 rounded-xl transition-all duration-200 text-sm font-medium"
-                      >
-                        Average
-                      </button>
-                      <button
-                        onClick={() => setPreset('high-risk')}
-                        className="px-4 py-2 bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 text-red-400 rounded-xl transition-all duration-200 text-sm font-medium"
-                      >
-                        High Risk
-                      </button>
-                    </div>
-                  </GlassPanel>
-                </AnimatedContent>
+                  {/* Preset Buttons */}
+                  <AnimatedContent distance={20} direction="up" delay={50}>
+                    <GlassPanel className="p-4">
+                      <h3 className="text-base font-medium text-gray-200 mb-3">Quick Presets</h3>
+                      <div className="grid grid-cols-3 gap-2">
+                        <button
+                          onClick={() => setPreset('low-risk')}
+                          className="px-3 py-2 bg-green-500/10 hover:bg-green-500/20 border border-green-500/20 text-green-400 rounded-lg transition-all duration-200 text-sm font-medium"
+                        >
+                          Low Risk
+                        </button>
+                        <button
+                          onClick={() => setPreset('average')}
+                          className="px-3 py-2 bg-yellow-500/10 hover:bg-yellow-500/20 border border-yellow-500/20 text-yellow-400 rounded-lg transition-all duration-200 text-sm font-medium"
+                        >
+                          Average
+                        </button>
+                        <button
+                          onClick={() => setPreset('high-risk')}
+                          className="px-3 py-2 bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 text-red-400 rounded-lg transition-all duration-200 text-sm font-medium"
+                        >
+                          High Risk
+                        </button>
+                      </div>
+                    </GlassPanel>
+                  </AnimatedContent>
+                </div>
 
-                {/* Feature Controls */}
+                {/* Feature Controls - Scrollable */}
                 <AnimatedContent distance={20} direction="up" delay={100}>
-                  <GlassPanel className="p-6">
-                    <h3 className="text-lg font-medium text-gray-200 mb-6">Startup Parameters</h3>
-                    <div className="space-y-6">
+                  <GlassPanel className="p-4">
+                    <h3 className="text-base font-medium text-gray-200 mb-4">Startup Parameters</h3>
+                    <div className="space-y-4 max-h-80 overflow-y-auto pr-2 custom-scrollbar pb-2">
                       {features.map((feature, index) => (
-                        <div key={feature.name} className="space-y-2">
+                        <div key={feature.name} className="space-y-2 pb-3 border-b border-white/[0.05] last:border-b-0 last:pb-0">
                           <div className="flex justify-between items-center">
                             <label className="text-sm font-medium text-gray-300">
                               {feature.display_name}
                             </label>
                             <span className="text-sm text-gray-400">
-                              {featureValues[feature.name]}
+                              {(() => {
+                                const value = getFeatureValue(feature.name, feature.default_value);
+                                if (feature.name === "Number of Investors") {
+                                  return value.toFixed(0);
+                                }
+                                if (feature.name === "Trademarks Registered") {
+                                  return value.toFixed(0);
+                                }
+                                if (feature.name === "Number of Events") {
+                                  return value.toFixed(0);
+                                }
+                                if (feature.name === "Financing for entrepreneurs") {
+                                  return value.toFixed(1);
+                                }
+                                if (feature.name === "Governmental support and policies") {
+                                  return value.toFixed(1);
+                                }
+                                if (feature.name === "Taxes and bureaucracy") {
+                                  return value.toFixed(1);
+                                }
+                                if (feature.name === "Governmental programs") {
+                                  return value.toFixed(1);
+                                }
+                                if (feature.name === "R&D transfer") {
+                                  return value.toFixed(1);
+                                }
+                                if (feature.name === "Commercial and professional infrastructure") {
+                                  return value.toFixed(1);
+                                }
+                                if (feature.name === "Internal market dynamics") {
+                                  return value.toFixed(1);
+                                }
+                                if (feature.name === "Internal market openness") {
+                                  return value.toFixed(1);
+                                }
+                                if (feature.name === "Cultural and social norms") {
+                                  return value.toFixed(1);
+                                }
+                                return value;
+                              })()}
                             </span>
                           </div>
                           
@@ -258,7 +338,7 @@ export default function RiskCalculatorPage() {
                                 min={feature.min_value}
                                 max={feature.max_value}
                                 step={feature.step || 1}
-                                value={featureValues[feature.name] || feature.default_value}
+                                value={getFeatureValue(feature.name, feature.default_value)}
                                 onChange={(e) => handleFeatureChange(feature.name, parseFloat(e.target.value))}
                                 className="w-full h-2 bg-white/[0.05] rounded-lg appearance-none cursor-pointer slider"
                               />
@@ -266,11 +346,11 @@ export default function RiskCalculatorPage() {
                           ) : (
                             <div className="flex items-center">
                               <button
-                                onClick={() => handleFeatureChange(feature.name, !featureValues[feature.name])}
+                                onClick={() => handleFeatureChange(feature.name, !getFeatureValue(feature.name, false))}
                                 className={`
                                   relative inline-flex h-6 w-11 items-center rounded-full
                                   transition-colors duration-200 ease-in-out
-                                  ${featureValues[feature.name] 
+                                  ${getFeatureValue(feature.name, false) 
                                     ? 'bg-violet-500' 
                                     : 'bg-white/[0.05]'
                                   }
@@ -280,12 +360,12 @@ export default function RiskCalculatorPage() {
                                   className={`
                                     inline-block h-4 w-4 transform rounded-full bg-white
                                     transition-transform duration-200 ease-in-out
-                                    ${featureValues[feature.name] ? 'translate-x-6' : 'translate-x-1'}
+                                    ${getFeatureValue(feature.name, false) ? 'translate-x-6' : 'translate-x-1'}
                                   `}
                                 />
                               </button>
                               <span className="ml-3 text-sm text-gray-400">
-                                {featureValues[feature.name] ? 'Yes' : 'No'}
+                                {getFeatureValue(feature.name, false) ? 'Yes' : 'No'}
                               </span>
                             </div>
                           )}
@@ -299,25 +379,25 @@ export default function RiskCalculatorPage() {
               </div>
 
               {/* Right Column - Results */}
-              <div className="space-y-6">
+              <div className="space-y-4">
                 
                 {/* Risk Score Display */}
                 <AnimatedContent distance={20} direction="up" delay={150}>
-                  <GlassPanel className="p-6 text-center">
-                    <h3 className="text-lg font-medium text-gray-200 mb-6 flex items-center justify-center">
-                      <Target className="w-5 h-5 mr-2 text-violet-400" />
+                  <GlassPanel className="p-4 text-center">
+                    <h3 className="text-base font-medium text-gray-200 mb-4 flex items-center justify-center">
+                      <Target className="w-4 h-4 mr-2 text-violet-400" />
                       Failure Risk
                     </h3>
                     
                     {loading ? (
-                      <div className="space-y-4">
-                        <div className="animate-spin rounded-full h-16 w-16 border-2 border-violet-400 border-t-transparent mx-auto" />
+                      <div className="space-y-3">
+                        <div className="animate-spin rounded-full h-12 w-12 border-2 border-violet-400 border-t-transparent mx-auto" />
                         <p className="text-gray-400 text-sm">Calculating...</p>
                       </div>
                     ) : riskResult ? (
-                      <div className="space-y-6">
+                      <div className="space-y-4">
                         {/* Risk Gauge */}
-                        <div className="relative w-32 h-16 mx-auto">
+                        <div className="relative w-24 h-12 mx-auto">
                           <svg viewBox="0 0 100 50" className="w-full h-full">
                             {/* Background arc */}
                             <path
@@ -351,11 +431,11 @@ export default function RiskCalculatorPage() {
                         
                         {/* Risk Score */}
                         <div>
-                          <div className="text-3xl font-light text-gray-100 mb-2">
+                          <div className="text-2xl font-light text-gray-100 mb-2">
                             {(riskResult.risk_score * 100).toFixed(1)}%
                           </div>
                           <div className={`
-                            inline-block px-3 py-1 rounded-full text-sm font-medium
+                            inline-block px-2 py-1 rounded-full text-xs font-medium
                             ${riskResult.risk_level === 'low' ? 'bg-green-500/20 text-green-400' :
                               riskResult.risk_level === 'medium' ? 'bg-yellow-500/20 text-yellow-400' :
                               'bg-red-500/20 text-red-400'}
@@ -380,20 +460,20 @@ export default function RiskCalculatorPage() {
                 {/* Key Factors */}
                 {riskResult?.key_factors?.length > 0 && (
                   <AnimatedContent distance={20} direction="up" delay={200}>
-                    <GlassPanel className="p-6">
-                      <h3 className="text-lg font-medium text-gray-200 mb-4 flex items-center">
-                        <AlertTriangle className="w-5 h-5 mr-2 text-orange-400" />
+                    <GlassPanel className="p-4">
+                      <h3 className="text-base font-medium text-gray-200 mb-3 flex items-center">
+                        <AlertTriangle className="w-4 h-4 mr-2 text-orange-400" />
                         Key Risk Factors
                       </h3>
-                      <div className="space-y-3">
+                      <div className="space-y-2 max-h-32 overflow-y-auto custom-scrollbar">
                         {riskResult.key_factors.map((factor, index) => (
                           <div key={index} className="space-y-1">
                             <div className="flex items-center justify-between">
-                              <span className="text-sm font-medium text-gray-300">
+                              <span className="text-xs font-medium text-gray-300">
                                 {factor.factor}
                               </span>
                               <span className={`
-                                text-xs px-2 py-1 rounded-full
+                                text-xs px-1 py-0.5 rounded-full
                                 ${factor.impact === 'high' ? 'bg-red-500/20 text-red-400' :
                                   factor.impact === 'medium' ? 'bg-yellow-500/20 text-yellow-400' :
                                   'bg-green-500/20 text-green-400'}
@@ -412,16 +492,16 @@ export default function RiskCalculatorPage() {
                 {/* Recommendations */}
                 {riskResult?.recommendations?.length > 0 && (
                   <AnimatedContent distance={20} direction="up" delay={250}>
-                    <GlassPanel className="p-6">
-                      <h3 className="text-lg font-medium text-gray-200 mb-4 flex items-center">
-                        <Lightbulb className="w-5 h-5 mr-2 text-yellow-400" />
+                    <GlassPanel className="p-4">
+                      <h3 className="text-base font-medium text-gray-200 mb-3 flex items-center">
+                        <Lightbulb className="w-4 h-4 mr-2 text-yellow-400" />
                         Recommendations
                       </h3>
-                      <div className="space-y-3">
+                      <div className="space-y-2 max-h-32 overflow-y-auto custom-scrollbar">
                         {riskResult.recommendations.map((recommendation, index) => (
-                          <div key={index} className="flex items-start space-x-3">
-                            <div className="w-1.5 h-1.5 bg-violet-400 rounded-full mt-2 flex-shrink-0" />
-                            <p className="text-sm text-gray-300">{recommendation}</p>
+                          <div key={index} className="flex items-start space-x-2">
+                            <div className="w-1 h-1 bg-violet-400 rounded-full mt-1.5 flex-shrink-0" />
+                            <p className="text-xs text-gray-300">{recommendation}</p>
                           </div>
                         ))}
                       </div>
@@ -434,17 +514,50 @@ export default function RiskCalculatorPage() {
             {/* Error Display */}
             {error && (
               <AnimatedContent distance={20} direction="up" delay={300}>
-                <GlassPanel className="p-4 border-red-500/20 bg-red-500/[0.02] mt-6">
+                <GlassPanel className="p-3 border-red-500/20 bg-red-500/[0.02] mt-4">
                   <div className="flex items-start space-x-2">
-                    <AlertTriangle size={16} className="text-red-400 mt-0.5 flex-shrink-0" />
+                    <AlertTriangle size={14} className="text-red-400 mt-0.5 flex-shrink-0" />
                     <p className="text-red-400 text-sm">{error}</p>
                   </div>
                 </GlassPanel>
               </AnimatedContent>
             )}
+
+            {/* Footer */}
+            <div className="mt-6 pt-4 border-t border-white/[0.05]">
+              <div className="flex flex-col sm:flex-row justify-between items-center text-xs text-gray-500">
+                <div className="flex items-center space-x-4 mb-2 sm:mb-0">
+                  <span>MSBA Risk Assessment Tool</span>
+                  <span>•</span>
+                  <span>Powered by Machine Learning</span>
+                </div>
+                <div className="flex items-center space-x-4">
+                  <span>Real-time Analysis</span>
+                  <span>•</span>
+                  <span>Startup Risk Prediction</span>
+                </div>
+              </div>
+            </div>
           </div>
         </FadeContent>
       </div>
+
+      <style jsx>{`
+        .custom-scrollbar::-webkit-scrollbar {
+          width: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+          background: rgba(255, 255, 255, 0.05);
+          border-radius: 3px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+          background: rgba(255, 255, 255, 0.2);
+          border-radius: 3px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+          background: rgba(255, 255, 255, 0.3);
+        }
+      `}</style>
     </div>
   );
 }

@@ -1,3 +1,4 @@
+# %%
 import joblib
 import pandas as pd
 import numpy as np
@@ -32,10 +33,54 @@ class ModelService:
                 logger.info("✅ Loaded model info")
             else:
                 logger.warning("⚠️ Model info not found, using default settings")
+                # Use the actual predictors from training
                 self.model_info = {
-                    'predictors': [],
-                    'scale_features': [],
-                    'leave_unscaled': []
+                    'predictors': [
+                        "Trademarks Registered",
+                        "Number of Events",
+                        "Diversity Spotlight Dummy",
+                        "Repeat_Founder",
+                        "Asia Dummy",
+                        "Middle East Dummy",
+                        "Financing for entrepreneurs",
+                        "Governmental support and policies",
+                        "Taxes and bureaucracy",
+                        "Governmental programs",
+                        "R&D transfer",
+                        "Basic school entrepreneurial education and training",
+                        "Post school entrepreneurial education and training",
+                        "Physical and services infrastructure",
+                        "Commercial and professional infrastructure",
+                        "Internal market dynamics",
+                        "Internal market openness",
+                        "Cultural and social norms",
+                        "Food and Restaurant Dummy",
+                        "High Tech Dummy",
+                    ],
+                    'scale_features': [
+                        "Trademarks Registered",
+                        "Number of Events",
+                        "Financing for entrepreneurs",
+                        "Governmental support and policies",
+                        "Basic school entrepreneurial education and training",
+                        "Post school entrepreneurial education and training",
+                        "Taxes and bureaucracy",
+                        "Governmental programs",
+                        "R&D transfer",
+                        "Physical and services infrastructure",
+                        "Commercial and professional infrastructure",
+                        "Internal market dynamics",
+                        "Internal market openness",
+                        "Cultural and social norms",
+                    ],
+                    'leave_unscaled': [
+                        "Diversity Spotlight Dummy",
+                        "Repeat_Founder",
+                        "Asia Dummy",
+                        "Middle East Dummy",
+                        "Food and Restaurant Dummy",
+                        "High Tech Dummy",
+                    ]
                 }
         return self.model_info
         
@@ -303,16 +348,6 @@ class RiskService:
         """Get feature definitions for the risk calculator"""
         return [
             {
-                "name": "Number of Investors",
-                "display_name": "Number of Investors",
-                "type": "slider",
-                "min_value": 0,
-                "max_value": 20,
-                "default_value": 2,
-                "step": 1,
-                "description": "Total number of investors backing the startup"
-            },
-            {
                 "name": "Trademarks Registered",
                 "display_name": "Trademarks Registered",
                 "type": "slider",
@@ -353,6 +388,26 @@ class RiskService:
                 "description": "Level of governmental support and policies (1-7 scale)"
             },
             {
+                "name": "Taxes and bureaucracy",
+                "display_name": "Taxes and Bureaucracy",
+                "type": "slider",
+                "min_value": 1.0,
+                "max_value": 7.0,
+                "default_value": 3.5,
+                "step": 0.1,
+                "description": "Impact of taxes and bureaucracy (1-7 scale, higher is better)"
+            },
+            {
+                "name": "Governmental programs",
+                "display_name": "Government Programs",
+                "type": "slider",
+                "min_value": 1.0,
+                "max_value": 7.0,
+                "default_value": 4.5,
+                "step": 0.1,
+                "description": "Quality of governmental programs (1-7 scale)"
+            },
+            {
                 "name": "R&D transfer",
                 "display_name": "R&D Transfer",
                 "type": "slider",
@@ -363,8 +418,38 @@ class RiskService:
                 "description": "Research and development transfer effectiveness (1-7 scale)"
             },
             {
+                "name": "Basic school entrepreneurial education and training",
+                "display_name": "Basic Education Support",
+                "type": "slider",
+                "min_value": 1.0,
+                "max_value": 7.0,
+                "default_value": 3.5,
+                "step": 0.1,
+                "description": "Entrepreneurial education at basic school level (1-7 scale)"
+            },
+            {
+                "name": "Post school entrepreneurial education and training",
+                "display_name": "Post-School Education",
+                "type": "slider",
+                "min_value": 1.0,
+                "max_value": 7.0,
+                "default_value": 4.5,
+                "step": 0.1,
+                "description": "Post-school entrepreneurial education and training (1-7 scale)"
+            },
+            {
+                "name": "Physical and services infrastructure",
+                "display_name": "Physical Infrastructure",
+                "type": "slider",
+                "min_value": 1.0,
+                "max_value": 7.0,
+                "default_value": 5.0,
+                "step": 0.1,
+                "description": "Quality of physical and services infrastructure (1-7 scale)"
+            },
+            {
                 "name": "Commercial and professional infrastructure",
-                "display_name": "Infrastructure",
+                "display_name": "Commercial Infrastructure",
                 "type": "slider",
                 "min_value": 1.0,
                 "max_value": 7.0,
@@ -381,6 +466,26 @@ class RiskService:
                 "default_value": 4.5,
                 "step": 0.1,
                 "description": "Internal market dynamics score (1-7 scale)"
+            },
+            {
+                "name": "Internal market openness",
+                "display_name": "Market Openness",
+                "type": "slider",
+                "min_value": 1.0,
+                "max_value": 7.0,
+                "default_value": 5.0,
+                "step": 0.1,
+                "description": "Openness of internal market (1-7 scale)"
+            },
+            {
+                "name": "Cultural and social norms",
+                "display_name": "Cultural Support",
+                "type": "slider",
+                "min_value": 1.0,
+                "max_value": 7.0,
+                "default_value": 4.5,
+                "step": 0.1,
+                "description": "Cultural and social norms supporting entrepreneurship (1-7 scale)"
             },
             {
                 "name": "Diversity Spotlight Dummy",
@@ -404,13 +509,6 @@ class RiskService:
                 "description": "Whether this is a high-tech startup"
             },
             {
-                "name": "America Dummy",
-                "display_name": "Americas Region",
-                "type": "switch",
-                "default_value": True,
-                "description": "Startup is located in the Americas"
-            },
-            {
                 "name": "Asia Dummy",
                 "display_name": "Asia Region",
                 "type": "switch",
@@ -423,6 +521,13 @@ class RiskService:
                 "type": "switch",
                 "default_value": False,
                 "description": "Startup is located in the Middle East"
+            },
+            {
+                "name": "Food and Restaurant Dummy",
+                "display_name": "Food & Restaurant",
+                "type": "switch",
+                "default_value": False,
+                "description": "Whether this is a food and restaurant business"
             }
         ]
     
@@ -432,15 +537,6 @@ class RiskService:
         defaults = {}
         for feature in features:
             defaults[feature["name"]] = feature["default_value"]
-        
-        # Add other required features with defaults
-        defaults.update({
-            "Taxes and bureaucracy": 3.5,
-            "Governmental programs": 4.5,
-            "Internal market openness": 5.0,
-            "Cultural and social norms": 4.5,
-            "Food and Restaurant Dummy": False
-        })
         
         return defaults
     
@@ -515,12 +611,6 @@ class RiskService:
         # Check various risk factors with their thresholds
         risk_checks = [
             {
-                "condition": features.get("Number of Investors", 0) < 2,
-                "factor": "Low Investor Count",
-                "impact": "high",
-                "description": "Having fewer investors may indicate limited validation and funding"
-            },
-            {
                 "condition": features.get("Repeat_Founder", 0) == 0,
                 "factor": "First-time Founder", 
                 "impact": "medium",
@@ -561,6 +651,18 @@ class RiskService:
                 "factor": "Weak R&D Transfer",
                 "impact": "medium",
                 "description": "Poor R&D transfer may limit innovation capabilities"
+            },
+            {
+                "condition": features.get("Commercial and professional infrastructure", 5.0) < 3.5,
+                "factor": "Weak Infrastructure",
+                "impact": "high",
+                "description": "Poor commercial infrastructure limits business operations"
+            },
+            {
+                "condition": features.get("Internal market dynamics", 4.5) < 3.5,
+                "factor": "Poor Market Dynamics",
+                "impact": "medium",
+                "description": "Weak market dynamics may limit growth opportunities"
             }
         ]
         

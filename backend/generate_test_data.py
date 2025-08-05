@@ -108,16 +108,16 @@ def generate_test_data(num_samples=50):
         asia_dummy = 0
         middle_east_dummy = 0
         
-        # Ecosystem ratings (1-7 scale)
-        financing = round(random.uniform(3.0, 6.0), 2)
-        gov_support = round(random.uniform(2.5, 5.5), 2)
-        taxes = round(random.uniform(2.0, 5.0), 2)
-        gov_programs = round(random.uniform(3.0, 6.0), 2)
-        rd_transfer = round(random.uniform(2.5, 5.5), 2)
-        commercial_infra = round(random.uniform(3.5, 6.5), 2)
-        market_dynamics = round(random.uniform(3.0, 6.0), 2)
-        market_openness = round(random.uniform(3.5, 6.5), 2)
-        cultural_norms = round(random.uniform(3.0, 6.0), 2)
+        # Ecosystem ratings (1-5 scale)
+        financing = round(random.uniform(1.0, 5.0), 3)
+        gov_support = round(random.uniform(1.0, 5.0), 3)
+        taxes = round(random.uniform(1.0, 5.0), 3)
+        gov_programs = round(random.uniform(1.0, 5.0), 3)
+        rd_transfer = round(random.uniform(1.0, 5.0), 3)
+        commercial_infra = round(random.uniform(1.0, 5.0), 3)
+        market_dynamics = round(random.uniform(1.0, 5.0), 3)
+        market_openness = round(random.uniform(1.0, 5.0), 3)
+        cultural_norms = round(random.uniform(1.0, 5.0), 3)
         
         # Repeat founder
         repeat_founder = random.choices([0, 1], weights=[0.8, 0.2])[0]

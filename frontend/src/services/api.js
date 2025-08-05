@@ -81,34 +81,6 @@ export const analyzeSentiment = async (companyName) => {
   return response.data;
 };
 
-// Test backend connectivity
-export const testConnection = async () => {
-  try {
-    console.log('🔍 Testing backend connection...');
-    console.log('🌐 Testing proxy with URL:', '/api/health');
-    const response = await api.get('/api/health');
-    console.log('✅ Backend connection successful:', response.data); 
-    return response.data;
-  } catch (error) {
-    console.error('❌ Backend connection failed:', error.message);
-    throw error;
-  }
-};
-
-// Test proxy directly with fetch
-export const testProxy = async () => {
-  try {
-    console.log('🔍 Testing Vite proxy directly...');
-    const response = await fetch('/api/health');
-    const data = await response.json();
-    console.log('✅ Proxy test successful:', data);
-    return data;
-  } catch (error) {
-    console.error('❌ Proxy test failed:', error.message);
-    throw error;
-  }
-};
-
 // Get available models
 export const getModels = async () => {
   try {

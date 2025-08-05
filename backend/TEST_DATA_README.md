@@ -42,7 +42,7 @@ The test data includes all features from `riskDBv4.csv`:
 - Financial metrics (funding, investors)
 - Innovation metrics (patents, trademarks)
 - Activity metrics (events, articles)
-- Ecosystem ratings (1-7 scale ratings)
+- Ecosystem ratings (1-5 scale ratings)
 - Binary flags (high tech, closed, diversity, etc.)
 
 ## Model Testing Process

@@ -2,7 +2,7 @@ import { useState, useCallback, useEffect } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { Upload, FileText, BarChart3, AlertCircle, TrendingUp } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { uploadCSV, testConnection, getModels } from '../services/api';
+import { uploadCSV, getModels } from '../services/api';
 import FadeContent from '../components/ui/FadeContent';
 import AnimatedContent from '../components/ui/AnimatedContent';
 import GlassPanel from '../components/ui/GlassPanel';
@@ -45,15 +45,6 @@ export default function CSVAnalysisPage() {
     };
     fetchModels();
   }, []);
-
-  const handleConnectionTest = async () => {
-    try {
-      await testConnection();
-      alert('✅ Backend connection successful!');
-    } catch (err) {
-      alert('❌ Backend connection failed: ' + err.message);
-    }
-  };
 
   const handleAnalysis = async () => {
     if (!file) return;
@@ -208,25 +199,6 @@ export default function CSVAnalysisPage() {
                       </div>
                     </GlassPanel>
                   )}
-
-                  {/* Test Connection Button */}
-                  <button
-                    onClick={handleConnectionTest}
-                    style={{
-                      width: '100%',
-                      padding: '0.625rem 1.25rem',
-                      backgroundColor: 'rgba(59, 130, 246, 0.1)',
-                      border: '1px solid rgba(59, 130, 246, 0.2)',
-                      color: 'rgba(96, 165, 250, 1)',
-                      borderRadius: '0.75rem',
-                      fontSize: '0.875rem',
-                      fontWeight: '500',
-                      marginBottom: '0.75rem',
-                      cursor: 'pointer'
-                    }}
-                  >
-                    🔍 Test Backend Connection
-                  </button>
 
                   {/* Analyze Button */}
                   <button
