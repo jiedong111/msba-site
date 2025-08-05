@@ -6,7 +6,9 @@ __pycache__/
 *.egg-info/
 dist/
 build/
+*.csv
 
 react-bits/
 
 repomix-output.xml
+
