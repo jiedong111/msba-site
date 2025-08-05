@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { BarChart3, Brain } from 'lucide-react';
+import { BarChart3, Brain, Calendar } from 'lucide-react';
 import FadeContent from '../components/ui/FadeContent';
 import AnimatedContent from '../components/ui/AnimatedContent';
 import GlassPanel from '../components/ui/GlassPanel';
@@ -145,6 +145,68 @@ export default function HomePage() {
                     }}>
                       Analyze company sentiment and assess risk levels using web data and AI. 
                       Get comprehensive market intelligence.
+                    </p>
+                  </div>
+                  
+                  <div style={{ paddingTop: '0.5rem' }}>
+                    <span style={{
+                      color: 'var(--color-violet-400)',
+                      fontSize: '0.875rem',
+                      fontWeight: '500'
+                    }}>
+                      Get Started →
+                    </span>
+                  </div>
+                </div>
+              </GlassPanel>
+            </Link>
+          </AnimatedContent>
+
+          {/* Seasonality Analysis */}
+          <AnimatedContent distance={20} direction="up" delay={100}>
+            <Link 
+              to="/seasonality-analysis" 
+              style={{ display: 'block', textDecoration: 'none' }}
+              className="group"
+            >
+              <GlassPanel style={{
+                padding: '2rem',
+                transition: 'all 0.2s ease',
+                cursor: 'pointer'
+              }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                  <div style={{
+                    width: '3rem',
+                    height: '3rem',
+                    borderRadius: '0.75rem',
+                    backgroundColor: 'rgba(139, 92, 246, 0.1)',
+                    border: '1px solid rgba(139, 92, 246, 0.2)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center'
+                  }}>
+                    <Calendar style={{
+                      width: '1.5rem',
+                      height: '1.5rem',
+                      color: 'var(--color-violet-400)'
+                    }} />
+                  </div>
+                  
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                    <h3 style={{
+                      fontSize: '1rem',
+                      fontWeight: '500',
+                      color: 'var(--color-gray-200)'
+                    }}>
+                      Seasonality Analysis
+                    </h3>
+                    <p style={{
+                      color: 'var(--color-gray-500)',
+                      fontSize: '0.875rem',
+                      lineHeight: '1.6'
+                    }}>
+                      Explore temporal patterns and seasonal trends in financial announcements. 
+                      Interactive dashboard with statistical insights.
                     </p>
                   </div>
                   
