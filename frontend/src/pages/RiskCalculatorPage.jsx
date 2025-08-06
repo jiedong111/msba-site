@@ -115,78 +115,6 @@ export default function RiskCalculatorPage() {
     }
   };
 
-  const setPreset = (presetType) => {
-    const presets = {
-      'low-risk': {
-        'Number of Investors': 8,
-        'Trademarks Registered': 5,
-        'Number of Events': 25,
-        'Financing for entrepreneurs': 8.0,
-        'Governmental support and policies': 8.0,
-        'Taxes and bureaucracy': 7.0,
-        'Governmental programs': 8.0,
-        'R&D transfer': 8.0,
-        'Commercial and professional infrastructure': 8.0,
-        'Internal market dynamics': 8.0,
-        'Internal market openness': 8.0,
-        'Cultural and social norms': 8.0,
-        'Diversity Spotlight Dummy': true,
-        'Repeat_Founder': true,
-        'High Tech Dummy': true,
-        'Food and Restaurant Dummy': false,
-        'America Dummy': true,
-        'Asia Dummy': false,
-        'Middle East Dummy': false
-      },
-      'average': {
-        'Number of Investors': 3,
-        'Trademarks Registered': 2,
-        'Number of Events': 10,
-        'Financing for entrepreneurs': 5.0,
-        'Governmental support and policies': 5.0,
-        'Taxes and bureaucracy': 5.0,
-        'Governmental programs': 5.0,
-        'R&D transfer': 5.0,
-        'Commercial and professional infrastructure': 5.0,
-        'Internal market dynamics': 5.0,
-        'Internal market openness': 5.0,
-        'Cultural and social norms': 5.0,
-        'Diversity Spotlight Dummy': false,
-        'Repeat_Founder': false,
-        'High Tech Dummy': true,
-        'Food and Restaurant Dummy': false,
-        'America Dummy': true,
-        'Asia Dummy': false,
-        'Middle East Dummy': false
-      },
-      'high-risk': {
-        'Number of Investors': 0,
-        'Trademarks Registered': 0,
-        'Number of Events': 1,
-        'Financing for entrepreneurs': 2.0,
-        'Governmental support and policies': 2.0,
-        'Taxes and bureaucracy': 3.0,
-        'Governmental programs': 2.0,
-        'R&D transfer': 2.0,
-        'Commercial and professional infrastructure': 2.0,
-        'Internal market dynamics': 2.0,
-        'Internal market openness': 2.0,
-        'Cultural and social norms': 2.0,
-        'Diversity Spotlight Dummy': false,
-        'Repeat_Founder': false,
-        'High Tech Dummy': false,
-        'Food and Restaurant Dummy': true,
-        'America Dummy': false,
-        'Asia Dummy': true,
-        'Middle East Dummy': false
-      }
-    };
-
-    setFeatureValues(prev => ({
-      ...prev,
-      ...presets[presetType]
-    }));
-  };
 
   const getRiskColor = (riskLevel) => {
     switch (riskLevel) {
@@ -248,32 +176,6 @@ export default function RiskCalculatorPage() {
                     </GlassPanel>
                   </AnimatedContent>
 
-                  {/* Preset Buttons */}
-                  <AnimatedContent distance={20} direction="up" delay={50}>
-                    <GlassPanel className="p-4">
-                      <h3 className="text-base font-medium text-gray-200 mb-3">Quick Presets</h3>
-                      <div className="grid grid-cols-3 gap-2">
-                        <button
-                          onClick={() => setPreset('low-risk')}
-                          className="px-3 py-2 bg-green-500/10 hover:bg-green-500/20 border border-green-500/20 text-green-400 rounded-lg transition-all duration-200 text-sm font-medium"
-                        >
-                          Low Risk
-                        </button>
-                        <button
-                          onClick={() => setPreset('average')}
-                          className="px-3 py-2 bg-yellow-500/10 hover:bg-yellow-500/20 border border-yellow-500/20 text-yellow-400 rounded-lg transition-all duration-200 text-sm font-medium"
-                        >
-                          Average
-                        </button>
-                        <button
-                          onClick={() => setPreset('high-risk')}
-                          className="px-3 py-2 bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 text-red-400 rounded-lg transition-all duration-200 text-sm font-medium"
-                        >
-                          High Risk
-                        </button>
-                      </div>
-                    </GlassPanel>
-                  </AnimatedContent>
                 </div>
 
                 {/* Feature Controls - Scrollable */}
@@ -444,10 +346,6 @@ export default function RiskCalculatorPage() {
                           </div>
                         </div>
                         
-                        {/* Confidence */}
-                        <div className="text-xs text-gray-500">
-                          Confidence: {(riskResult.confidence * 100).toFixed(0)}%
-                        </div>
                       </div>
                     ) : (
                       <div className="text-gray-400 text-sm">
@@ -457,57 +355,6 @@ export default function RiskCalculatorPage() {
                   </GlassPanel>
                 </AnimatedContent>
 
-                {/* Key Factors */}
-                {riskResult?.key_factors?.length > 0 && (
-                  <AnimatedContent distance={20} direction="up" delay={200}>
-                    <GlassPanel className="p-4">
-                      <h3 className="text-base font-medium text-gray-200 mb-3 flex items-center">
-                        <AlertTriangle className="w-4 h-4 mr-2 text-orange-400" />
-                        Key Risk Factors
-                      </h3>
-                      <div className="space-y-2 max-h-32 overflow-y-auto custom-scrollbar">
-                        {riskResult.key_factors.map((factor, index) => (
-                          <div key={index} className="space-y-1">
-                            <div className="flex items-center justify-between">
-                              <span className="text-xs font-medium text-gray-300">
-                                {factor.factor}
-                              </span>
-                              <span className={`
-                                text-xs px-1 py-0.5 rounded-full
-                                ${factor.impact === 'high' ? 'bg-red-500/20 text-red-400' :
-                                  factor.impact === 'medium' ? 'bg-yellow-500/20 text-yellow-400' :
-                                  'bg-green-500/20 text-green-400'}
-                              `}>
-                                {factor.impact}
-                              </span>
-                            </div>
-                            <p className="text-xs text-gray-500">{factor.description}</p>
-                          </div>
-                        ))}
-                      </div>
-                    </GlassPanel>
-                  </AnimatedContent>
-                )}
-
-                {/* Recommendations */}
-                {riskResult?.recommendations?.length > 0 && (
-                  <AnimatedContent distance={20} direction="up" delay={250}>
-                    <GlassPanel className="p-4">
-                      <h3 className="text-base font-medium text-gray-200 mb-3 flex items-center">
-                        <Lightbulb className="w-4 h-4 mr-2 text-yellow-400" />
-                        Recommendations
-                      </h3>
-                      <div className="space-y-2 max-h-32 overflow-y-auto custom-scrollbar">
-                        {riskResult.recommendations.map((recommendation, index) => (
-                          <div key={index} className="flex items-start space-x-2">
-                            <div className="w-1 h-1 bg-violet-400 rounded-full mt-1.5 flex-shrink-0" />
-                            <p className="text-xs text-gray-300">{recommendation}</p>
-                          </div>
-                        ))}
-                      </div>
-                    </GlassPanel>
-                  </AnimatedContent>
-                )}
               </div>
             </div>
 

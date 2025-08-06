@@ -1,10 +1,8 @@
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import Layout from './components/Layout';
 import HomePage from './pages/HomePage';
-import CSVAnalysisPage from './pages/CSVAnalysisPage';
 import SentimentAnalysisPage from './pages/SentimentAnalysisPage';
 import RiskCalculatorPage from './pages/RiskCalculatorPage';
-import SeasonalityAnalysisPage from './pages/SeasonalityAnalysisPage';
 
 function App() {
   return (
@@ -13,10 +11,8 @@ function App() {
         <Routes>
           <Route path="/" element={<Layout />}>
             <Route index element={<HomePage />} />
-            <Route path="csv-analysis" element={<CSVAnalysisPage />} />
             <Route path="sentiment-analysis" element={<SentimentAnalysisPage />} />
             <Route path="risk-calculator" element={<RiskCalculatorPage />} />
-            <Route path="seasonality-analysis" element={<SeasonalityAnalysisPage />} />
           </Route>
         </Routes>
       </Router>

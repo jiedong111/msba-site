@@ -1,5 +1,5 @@
 import { Outlet, Link, useLocation } from 'react-router-dom';
-import { BarChart3, Brain, Home, Calculator } from 'lucide-react';
+import { Brain, Home, Calculator } from 'lucide-react';
 import SimpleParticles from './ui/SimpleParticles';
 import GlassPanel from './ui/GlassPanel';
 
@@ -8,7 +8,6 @@ export default function Layout() {
 
   const navItems = [
     { path: '/', label: 'Home', icon: Home },
-    { path: '/csv-analysis', label: 'CSV Analysis', icon: BarChart3 },
     { path: '/sentiment-analysis', label: 'Sentiment Analysis', icon: Brain },
     { path: '/risk-calculator', label: 'Risk Calculator', icon: Calculator },
   ];

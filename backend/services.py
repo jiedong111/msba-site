@@ -241,105 +241,6 @@ class ModelService:
         return available_models
         
 
-class AnalysisService:
-    def __init__(self):
-        self.model_service = ModelService()
-        
-    def get_model_info(self) -> Dict[str, Any]:
-        """Get information about available models and their performance"""
-        model_info = self.model_service.load_model_info()
-        available_models = self.model_service.get_available_models()
-        
-        return {
-            "available_models": available_models,
-            "model_info": model_info,
-            "timestamp": datetime.now().isoformat()
-        }
-        
-    def analyze_csv(self, df: pd.DataFrame, model_name: str) -> Dict[str, Any]:
-        """Analyze CSV and return meaningful insights"""
-        
-        # Get predictions
-        predictions = self.model_service.predict(model_name, df)
-        
-        # Calculate percentiles for context
-        percentiles = np.percentile(predictions, [10, 25, 50, 75, 90])
-        
-        # Create meaningful bins
-        bins = np.histogram(predictions, bins=10)
-        
-        # Identify outliers (using IQR method)
-        Q1 = np.percentile(predictions, 25)
-        Q3 = np.percentile(predictions, 75)
-        IQR = Q3 - Q1
-        outliers = ((predictions < Q1 - 1.5 * IQR) | (predictions > Q3 + 1.5 * IQR)).sum()
-        
-        # Get model performance info
-        model_info = self.model_service.load_model_info()
-        model_performance = model_info.get('model_performance', {})
-        
-        return {
-            "model_used": model_name,
-            "predictions": predictions.tolist(),
-            "summary_stats": {
-                "count": len(predictions),
-                "mean": float(np.mean(predictions)),
-                "std": float(np.std(predictions)),
-                "min": float(np.min(predictions)),
-                "max": float(np.max(predictions)),
-                "median": float(np.median(predictions))
-            },
-            "insights": {
-                "percentiles": {
-                    "10%": float(percentiles[0]),
-                    "25%": float(percentiles[1]),
-                    "50%": float(percentiles[2]),
-                    "75%": float(percentiles[3]),
-                    "90%": float(percentiles[4])
-                },
-                "outlier_count": int(outliers),
-                "outlier_percentage": float(outliers / len(predictions) * 100),
-                "distribution_shape": self._describe_distribution(predictions),
-                "risk_segments": self._segment_predictions(predictions)
-            },
-            "chart_data": {
-                "histogram": {
-                    "bins": bins[1].tolist(),
-                    "counts": bins[0].tolist()
-                },
-                "predictions": predictions[:100].tolist(),  # First 100 for line chart
-                "indices": list(range(min(100, len(predictions))))
-            },
-            "model_performance": model_performance,
-            "timestamp": datetime.now().isoformat()
-        }
-    
-    def _describe_distribution(self, predictions):
-        """Describe the shape of the distribution"""
-        skewness = float(np.mean((predictions - np.mean(predictions))**3) / np.std(predictions)**3)
-        
-        if abs(skewness) < 0.5:
-            return "Normal (symmetric)"
-        elif skewness > 0.5:
-            return "Right-skewed (more low values)"
-        else:
-            return "Left-skewed (more high values)"
-    
-    def _segment_predictions(self, predictions):
-        """Segment predictions into risk categories"""
-        thresholds = np.percentile(predictions, [33, 67])
-        
-        low = (predictions < thresholds[0]).sum()
-        medium = ((predictions >= thresholds[0]) & (predictions < thresholds[1])).sum()
-        high = (predictions >= thresholds[1]).sum()
-        
-        return {
-            "low": {"count": int(low), "percentage": float(low / len(predictions) * 100)},
-            "medium": {"count": int(medium), "percentage": float(medium / len(predictions) * 100)},
-            "high": {"count": int(high), "percentage": float(high / len(predictions) * 100)}
-        }
-        
-
 class RiskService:
     def __init__(self):
         self.model_service = ModelService()
@@ -353,7 +254,7 @@ class RiskService:
                 "type": "slider",
                 "min_value": 0,
                 "max_value": 10,
-                "default_value": 1,
+                "default_value": 0,
                 "step": 1,
                 "description": "Number of registered trademarks"
             },
@@ -363,49 +264,49 @@ class RiskService:
                 "type": "slider",
                 "min_value": 0,
                 "max_value": 50,
-                "default_value": 5,
+                "default_value": 2,
                 "step": 1,
                 "description": "Number of events or activities the startup has participated in"
             },
             {
                 "name": "Financing for entrepreneurs",
-                "display_name": "Financing Score",
+                "display_name": "Financing for entrepreneurs",
                 "type": "slider",
                 "min_value": 1.0,
                 "max_value": 7.0,
-                "default_value": 4.5,
+                "default_value": 2.8,
                 "step": 0.1,
-                "description": "Access to financing for entrepreneurs (1-7 scale)"
+                "description": "The availability of financial resources—equity and debt—for small and medium enterprises (SMEs) (including grants and subsidies)"
             },
             {
                 "name": "Governmental support and policies",
-                "display_name": "Government Support",
+                "display_name": "Governmental support and policies",
                 "type": "slider",
                 "min_value": 1.0,
                 "max_value": 7.0,
-                "default_value": 4.0,
+                "default_value": 2.5,
                 "step": 0.1,
-                "description": "Level of governmental support and policies (1-7 scale)"
+                "description": "The extent to which public policies support entrepreneurship - entrepreneurship as a relevant economic issue"
             },
             {
                 "name": "Taxes and bureaucracy",
-                "display_name": "Taxes and Bureaucracy",
+                "display_name": "Taxes and bureaucracy",
                 "type": "slider",
                 "min_value": 1.0,
                 "max_value": 7.0,
-                "default_value": 3.5,
+                "default_value": 2.2,
                 "step": 0.1,
-                "description": "Impact of taxes and bureaucracy (1-7 scale, higher is better)"
+                "description": "The extent to which public policies support entrepreneurship - taxes or regulations are either size-neutral or encourage new and SMEs"
             },
             {
                 "name": "Governmental programs",
-                "display_name": "Government Programs",
+                "display_name": "Governmental programs",
                 "type": "slider",
                 "min_value": 1.0,
                 "max_value": 7.0,
-                "default_value": 4.5,
+                "default_value": 2.8,
                 "step": 0.1,
-                "description": "Quality of governmental programs (1-7 scale)"
+                "description": "The presence and quality of programs directly assisting SMEs at all levels of government (national, regional, municipal)"
             },
             {
                 "name": "R&D transfer",
@@ -413,79 +314,79 @@ class RiskService:
                 "type": "slider",
                 "min_value": 1.0,
                 "max_value": 7.0,
-                "default_value": 4.0,
+                "default_value": 2.5,
                 "step": 0.1,
-                "description": "Research and development transfer effectiveness (1-7 scale)"
+                "description": "The extent to which national research and development will lead to new commercial opportunities and is available to SMEs"
             },
             {
                 "name": "Basic school entrepreneurial education and training",
-                "display_name": "Basic Education Support",
+                "display_name": "Basic school entrepreneurial education and training",
                 "type": "slider",
                 "min_value": 1.0,
                 "max_value": 7.0,
-                "default_value": 3.5,
+                "default_value": 2.2,
                 "step": 0.1,
-                "description": "Entrepreneurial education at basic school level (1-7 scale)"
+                "description": "The extent to which training in creating or managing SMEs is incorporated within the education and training system at primary and secondary levels"
             },
             {
                 "name": "Post school entrepreneurial education and training",
-                "display_name": "Post-School Education",
+                "display_name": "Post school entrepreneurial education and training",
                 "type": "slider",
                 "min_value": 1.0,
                 "max_value": 7.0,
-                "default_value": 4.5,
+                "default_value": 2.8,
                 "step": 0.1,
-                "description": "Post-school entrepreneurial education and training (1-7 scale)"
+                "description": "The extent to which training in creating or managing SMEs is incorporated within the education and training system in higher education such as vocational, college, business schools, etc."
             },
             {
                 "name": "Physical and services infrastructure",
-                "display_name": "Physical Infrastructure",
+                "display_name": "Physical and services infrastructure",
                 "type": "slider",
                 "min_value": 1.0,
                 "max_value": 7.0,
-                "default_value": 5.0,
+                "default_value": 3.2,
                 "step": 0.1,
-                "description": "Quality of physical and services infrastructure (1-7 scale)"
+                "description": "Ease of access to physical resources—communication, utilities, transportation, land or space—at a price that does not discriminate against SMEs"
             },
             {
                 "name": "Commercial and professional infrastructure",
-                "display_name": "Commercial Infrastructure",
+                "display_name": "Commercial and professional infrastructure",
                 "type": "slider",
                 "min_value": 1.0,
                 "max_value": 7.0,
-                "default_value": 5.0,
+                "default_value": 3.2,
                 "step": 0.1,
-                "description": "Quality of commercial and professional infrastructure (1-7 scale)"
+                "description": "The presence of property rights, commercial, accounting and other legal and assessment services and institutions that support or promote SMEs"
             },
             {
                 "name": "Internal market dynamics",
-                "display_name": "Market Dynamics",
+                "display_name": "Internal market dynamics",
                 "type": "slider",
                 "min_value": 1.0,
                 "max_value": 7.0,
-                "default_value": 4.5,
+                "default_value": 2.8,
                 "step": 0.1,
-                "description": "Internal market dynamics score (1-7 scale)"
+                "description": "The competitive landscape and market conditions affecting new business entry and growth"
             },
             {
                 "name": "Internal market openness",
-                "display_name": "Market Openness",
+                "display_name": "Internal market openness",
                 "type": "slider",
                 "min_value": 1.0,
                 "max_value": 7.0,
-                "default_value": 5.0,
+                "default_value": 3.2,
                 "step": 0.1,
-                "description": "Openness of internal market (1-7 scale)"
+                "description": "The extent to which new firms are free to enter existing markets"
             },
             {
                 "name": "Cultural and social norms",
-                "display_name": "Cultural Support",
+                "display_name": "Cultural and social norms",
                 "type": "slider",
                 "min_value": 1.0,
                 "max_value": 7.0,
-                "default_value": 4.5,
+                "default_value": 2.8,
                 "step": 0.1,
-                "description": "Cultural and social norms supporting entrepreneurship (1-7 scale)"
+                "description": "The extent to which social and cultural norms encourage or allow actions leading to new business methods or activities that can potentially increase personal wealth and income"
             },
             {
                 "name": "Diversity Spotlight Dummy",
@@ -505,7 +406,7 @@ class RiskService:
                 "name": "High Tech Dummy",
                 "display_name": "High-Tech Startup",
                 "type": "switch",
-                "default_value": True,
+                "default_value": False,
                 "description": "Whether this is a high-tech startup"
             },
             {
@@ -586,126 +487,10 @@ class RiskService:
         else:
             risk_level = "high"
         
-        # Generate key factors (simplified)
-        key_factors = self._get_key_factors(full_features, risk_score)
-        
-        # Generate recommendations
-        recommendations = self._get_recommendations(risk_level, full_features)
-        
-        # Calculate confidence based on how close to decision boundary
-        # Higher confidence when probability is closer to 0 or 1
-        confidence = max(abs(risk_score - 0.5) * 2, 0.6)  # Scale 0.5-1.0 to 0.6-1.0
-        
         return {
             "risk_score": risk_score,
-            "risk_level": risk_level,
-            "confidence": confidence,
-            "key_factors": key_factors,
-            "recommendations": recommendations
+            "risk_level": risk_level
         }
-    
-    def _get_key_factors(self, features: Dict[str, Any], risk_score: float) -> List[Dict[str, Any]]:
-        """Identify key risk factors based on feature values"""
-        factors = []
-        
-        # Check various risk factors with their thresholds
-        risk_checks = [
-            {
-                "condition": features.get("Repeat_Founder", 0) == 0,
-                "factor": "First-time Founder", 
-                "impact": "medium",
-                "description": "First-time founders may lack entrepreneurial experience"
-            },
-            {
-                "condition": features.get("Financing for entrepreneurs", 4.5) < 3.5,
-                "factor": "Poor Access to Financing",
-                "impact": "high", 
-                "description": "Limited access to financing increases failure risk"
-            },
-            {
-                "condition": features.get("Trademarks Registered", 1) == 0,
-                "factor": "No Intellectual Property",
-                "impact": "medium",
-                "description": "Lack of registered trademarks may indicate weak IP protection"
-            },
-            {
-                "condition": features.get("Number of Events", 5) < 3,
-                "factor": "Low Market Activity",
-                "impact": "medium", 
-                "description": "Limited participation in events may indicate poor market engagement"
-            },
-            {
-                "condition": features.get("High Tech Dummy", 1) == 0,
-                "factor": "Non-Tech Sector",
-                "impact": "low",
-                "description": "Non-tech startups may face different scaling challenges"
-            },
-            {
-                "condition": features.get("Governmental support and policies", 4.0) < 3.0,
-                "factor": "Poor Government Support",
-                "impact": "medium",
-                "description": "Limited governmental support may hinder growth"
-            },
-            {
-                "condition": features.get("R&D transfer", 4.0) < 3.0,
-                "factor": "Weak R&D Transfer",
-                "impact": "medium",
-                "description": "Poor R&D transfer may limit innovation capabilities"
-            },
-            {
-                "condition": features.get("Commercial and professional infrastructure", 5.0) < 3.5,
-                "factor": "Weak Infrastructure",
-                "impact": "high",
-                "description": "Poor commercial infrastructure limits business operations"
-            },
-            {
-                "condition": features.get("Internal market dynamics", 4.5) < 3.5,
-                "factor": "Poor Market Dynamics",
-                "impact": "medium",
-                "description": "Weak market dynamics may limit growth opportunities"
-            }
-        ]
-        
-        # Add factors that meet their conditions
-        for check in risk_checks:
-            if check["condition"]:
-                factors.append({
-                    "factor": check["factor"],
-                    "impact": check["impact"], 
-                    "description": check["description"]
-                })
-        
-        # Sort by impact priority (high > medium > low)
-        impact_order = {"high": 3, "medium": 2, "low": 1}
-        factors.sort(key=lambda x: impact_order.get(x["impact"], 0), reverse=True)
-        
-        return factors[:5]  # Return top 5
-    
-    def _get_recommendations(self, risk_level: str, features: Dict[str, Any]) -> List[str]:
-        """Generate recommendations based on risk level and features"""
-        recommendations = []
-        
-        if risk_level == "high":
-            recommendations.extend([
-                "Consider seeking additional investors to validate your business model",
-                "Focus on improving access to financing and funding sources",
-                "Strengthen your business fundamentals and market positioning"
-            ])
-        elif risk_level == "medium":
-            recommendations.extend([
-                "Continue building investor relationships and market validation",
-                "Consider strategic partnerships to reduce operational risks",
-                "Monitor key performance indicators closely"
-            ])
-        else:
-            recommendations.extend([
-                "Maintain current momentum and continue execution",
-                "Consider scaling operations and market expansion",
-                "Focus on sustainable growth and profitability"
-            ])
-        
-        return recommendations[:3]
-
 
 class SentimentService:
     def __init__(self):

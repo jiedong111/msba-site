@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { BarChart3, Brain, Calendar } from 'lucide-react';
+import { Brain, Calculator } from 'lucide-react';
 import FadeContent from '../components/ui/FadeContent';
 import AnimatedContent from '../components/ui/AnimatedContent';
 import GlassPanel from '../components/ui/GlassPanel';
@@ -36,12 +36,12 @@ export default function HomePage() {
           display: 'grid',
           gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
           gap: '1.5rem',
-          maxWidth: '64rem'
+          maxWidth: '48rem'
         }}>
-          {/* CSV Analysis */}
+          {/* Risk Calculator */}
           <AnimatedContent distance={20} direction="up">
             <Link 
-              to="/csv-analysis" 
+              to="/risk-calculator" 
               style={{ display: 'block', textDecoration: 'none' }}
               className="group"
             >
@@ -61,7 +61,7 @@ export default function HomePage() {
                     alignItems: 'center',
                     justifyContent: 'center'
                   }}>
-                    <BarChart3 style={{
+                    <Calculator style={{
                       width: '1.5rem',
                       height: '1.5rem',
                       color: 'var(--color-violet-400)'
@@ -74,15 +74,15 @@ export default function HomePage() {
                       fontWeight: '500',
                       color: 'var(--color-gray-200)'
                     }}>
-                      CSV Analysis
+                      Risk Calculator
                     </h3>
                     <p style={{
                       color: 'var(--color-gray-500)',
                       fontSize: '0.875rem',
                       lineHeight: '1.6'
                     }}>
-                      Upload CSV files and run predictions using machine learning models. 
-                      Get instant insights with visualizations.
+                      Assess startup failure risk using advanced ML models. 
+                      Get instant predictions and key insights.
                     </p>
                   </div>
                   
@@ -162,67 +162,6 @@ export default function HomePage() {
             </Link>
           </AnimatedContent>
 
-          {/* Seasonality Analysis */}
-          <AnimatedContent distance={20} direction="up" delay={100}>
-            <Link 
-              to="/seasonality-analysis" 
-              style={{ display: 'block', textDecoration: 'none' }}
-              className="group"
-            >
-              <GlassPanel style={{
-                padding: '2rem',
-                transition: 'all 0.2s ease',
-                cursor: 'pointer'
-              }}>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                  <div style={{
-                    width: '3rem',
-                    height: '3rem',
-                    borderRadius: '0.75rem',
-                    backgroundColor: 'rgba(139, 92, 246, 0.1)',
-                    border: '1px solid rgba(139, 92, 246, 0.2)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center'
-                  }}>
-                    <Calendar style={{
-                      width: '1.5rem',
-                      height: '1.5rem',
-                      color: 'var(--color-violet-400)'
-                    }} />
-                  </div>
-                  
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                    <h3 style={{
-                      fontSize: '1rem',
-                      fontWeight: '500',
-                      color: 'var(--color-gray-200)'
-                    }}>
-                      Seasonality Analysis
-                    </h3>
-                    <p style={{
-                      color: 'var(--color-gray-500)',
-                      fontSize: '0.875rem',
-                      lineHeight: '1.6'
-                    }}>
-                      Explore temporal patterns and seasonal trends in financial announcements. 
-                      Interactive dashboard with statistical insights.
-                    </p>
-                  </div>
-                  
-                  <div style={{ paddingTop: '0.5rem' }}>
-                    <span style={{
-                      color: 'var(--color-violet-400)',
-                      fontSize: '0.875rem',
-                      fontWeight: '500'
-                    }}>
-                      Get Started →
-                    </span>
-                  </div>
-                </div>
-              </GlassPanel>
-            </Link>
-          </AnimatedContent>
         </div>
       </div>
     </FadeContent>

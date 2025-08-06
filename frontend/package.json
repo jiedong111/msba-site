@@ -13,14 +13,10 @@
     "@tailwindcss/postcss": "^4.1.11",
     "axios": "^1.11.0",
     "framer-motion": "^12.23.11",
-    "gsap": "^3.13.0",
     "lucide-react": "^0.534.0",
-    "ogl": "^1.0.11",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
-    "react-dropzone": "^14.3.8",
-    "react-router-dom": "^7.7.1",
-    "recharts": "^3.1.0"
+    "react-router-dom": "^7.7.1"
   },
   "devDependencies": {
     "@eslint/js": "^9.30.1",

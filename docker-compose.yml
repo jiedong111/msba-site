@@ -1,0 +1,22 @@
+version: '3.9'
+
+services:
+  app:
+    build: .
+    ports:
+      - "3000:3000"  # Frontend
+      - "8000:8000"  # Backend API
+    environment:
+      - NODE_ENV=production
+      - PYTHONUNBUFFERED=1
+    volumes:
+      # For development - comment out for production
+      - ./backend:/app/backend
+      - ./frontend/dist:/app/frontend/dist
+    restart: unless-stopped
+    networks:
+      - app-network
+
+networks:
+  app-network:
+    driver: bridge
