@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { Calculator, TrendingUp, AlertTriangle, Target, Lightbulb } from 'lucide-react';
 import { calculateRisk, getRiskFeatures, getRiskModels } from '../services/api';
 import FadeContent from '../components/ui/FadeContent';
@@ -6,39 +6,27 @@ import AnimatedContent from '../components/ui/AnimatedContent';
 import GlassPanel from '../components/ui/GlassPanel';
 import SimpleParticles from '../components/ui/SimpleParticles';
 
-// Debounce hook
-const useDebounce = (value, delay) => {
-  const [debouncedValue, setDebouncedValue] = useState(value);
-
-  useEffect(() => {
-    const handler = setTimeout(() => {
-      setDebouncedValue(value);
-    }, delay);
-
-    return () => {
-      clearTimeout(handler);
+// Simple debounce utility
+const debounce = (func, wait) => {
+  let timeout;
+  return function executedFunction(...args) {
+    const later = () => {
+      clearTimeout(timeout);
+      func(...args);
     };
-  }, [value, delay]);
-
-  return debouncedValue;
+    clearTimeout(timeout);
+    timeout = setTimeout(later, wait);
+  };
 };
 
 export default function RiskCalculatorPage() {
   const [features, setFeatures] = useState([]);
-  const [featureValues, setFeatureValues] = useState({});
   const [models, setModels] = useState([]);
   const [selectedModel, setSelectedModel] = useState('xgboost_model');
   const [riskResult, setRiskResult] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-
-  // Debounce feature values to prevent too many API calls
-  const debouncedFeatureValues = useDebounce(featureValues, 300);
-
-  // Utility function to get feature value with proper fallback
-  const getFeatureValue = (featureName, defaultValue) => {
-    return featureValues[featureName] !== undefined ? featureValues[featureName] : defaultValue;
-  };
+  const formRef = useRef(null);
 
   // Load features and models on mount
   useEffect(() => {
@@ -52,13 +40,7 @@ export default function RiskCalculatorPage() {
         setFeatures(featuresData.features || []);
         setModels(modelsData.models || []);
         
-        // Set default feature values
-        const defaults = {};
-        featuresData.features?.forEach(feature => {
-          defaults[feature.name] = feature.default_value;
-        });
-        setFeatureValues(defaults);
-        
+        // Initial calculation will happen via form change event
       } catch (err) {
         setError('Failed to load risk calculator data');
         console.error('Error loading data:', err);
@@ -68,19 +50,28 @@ export default function RiskCalculatorPage() {
     loadData();
   }, []);
 
-  // Calculate risk when feature values change
-  useEffect(() => {
-    if (Object.keys(debouncedFeatureValues).length > 0) {
-      calculateRiskScore();
-    }
-  }, [debouncedFeatureValues, selectedModel]);
-
-  const calculateRiskScore = async () => {
+  // Calculate risk from form data
+  const calculateRiskScore = useCallback(async () => {
+    if (!formRef.current || features.length === 0) return;
+    
+    const formData = new FormData(formRef.current);
+    const values = {};
+    
+    features.forEach(feature => {
+      const value = formData.get(feature.name);
+      if (feature.type === 'slider') {
+        values[feature.name] = parseFloat(value);
+      } else {
+        // Toggle switches
+        values[feature.name] = value === 'on';
+      }
+    });
+    
     setLoading(true);
     setError(null);
     
     try {
-      const result = await calculateRisk(debouncedFeatureValues, selectedModel);
+      const result = await calculateRisk(values, selectedModel);
       setRiskResult(result);
     } catch (err) {
       setError('Failed to calculate risk score');
@@ -88,33 +79,26 @@ export default function RiskCalculatorPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [features, selectedModel]);
 
-  const handleFeatureChange = (featureName, value) => {
-    // Validate that the value is within bounds for slider features
-    const feature = features.find(f => f.name === featureName);
-    if (feature && feature.type === 'slider') {
-      const min = feature.min_value;
-      const max = feature.max_value;
-      const step = feature.step || 1;
-      
-      // Ensure value is within bounds
-      const clampedValue = Math.max(min, Math.min(max, value));
-      // Round to step precision
-      const roundedValue = Math.round(clampedValue / step) * step;
-      
-      setFeatureValues(prev => ({
-        ...prev,
-        [featureName]: roundedValue
-      }));
-    } else {
-      setFeatureValues(prev => ({
-        ...prev,
-        [featureName]: value
-      }));
+  // Debounced calculation
+  const debouncedCalculate = useMemo(
+    () => debounce(calculateRiskScore, 500),
+    [calculateRiskScore]
+  );
+
+  // Trigger initial calculation when features are loaded
+  useEffect(() => {
+    if (features.length > 0) {
+      calculateRiskScore();
     }
-  };
+  }, [features.length, calculateRiskScore]);
 
+  // Handle model change
+  const handleModelChange = (e) => {
+    setSelectedModel(e.target.value);
+    debouncedCalculate();
+  };
 
   const getRiskColor = (riskLevel) => {
     switch (riskLevel) {
@@ -128,6 +112,30 @@ export default function RiskCalculatorPage() {
   const getRiskGaugeRotation = (riskScore) => {
     // Convert 0-1 score to -90 to 90 degrees (semicircle)
     return -90 + (riskScore * 180);
+  };
+
+  // Format display value for features
+  const formatDisplayValue = (feature, value) => {
+    const integerFeatures = ["Number of Investors", "Trademarks Registered", "Number of Events"];
+    const decimalFeatures = [
+      "Financing for entrepreneurs",
+      "Governmental support and policies",
+      "Taxes and bureaucracy",
+      "Governmental programs",
+      "R&D transfer",
+      "Commercial and professional infrastructure",
+      "Internal market dynamics",
+      "Internal market openness",
+      "Cultural and social norms"
+    ];
+    
+    if (integerFeatures.includes(feature.name)) {
+      return parseFloat(value).toFixed(0);
+    }
+    if (decimalFeatures.includes(feature.name)) {
+      return parseFloat(value).toFixed(1);
+    }
+    return value;
   };
 
   return (
@@ -148,215 +156,127 @@ export default function RiskCalculatorPage() {
             </div>
 
             {/* Main Layout */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
-              
-              {/* Left Column - Controls */}
-              <div className="lg:col-span-2 flex flex-col space-y-4">
+            <form ref={formRef} onChange={debouncedCalculate}>
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
+                
+                {/* Left Column - Controls */}
+                <div className="lg:col-span-2 flex flex-col space-y-4">
 
-                {/* Top Controls - Fixed */}
-                <div className="space-y-4 flex-shrink-0">
-                  {/* Model Selection */}
-                  <AnimatedContent distance={20} direction="up">
+                  {/* Top Controls - Fixed */}
+                  <div className="space-y-4 flex-shrink-0">
+                    {/* Model Selection */}
+                    <AnimatedContent distance={20} direction="up">
+                      <GlassPanel className="p-4">
+                        <h2 className="text-lg font-medium text-gray-100 mb-3 flex items-center">
+                          <Calculator className="w-4 h-4 mr-2 text-violet-400" />
+                          Model Selection
+                        </h2>
+                        <select
+                          value={selectedModel}
+                          onChange={handleModelChange}
+                          className="w-full px-3 py-2 bg-black/50 border border-white/[0.05] rounded-lg text-gray-100 placeholder-gray-600 focus:outline-none focus:border-violet-500/30 focus:bg-black/70 transition-all duration-200 text-sm"
+                        >
+                          {models.map(model => (
+                            <option key={model.name} value={model.name} className="bg-black text-gray-100">
+                              {model.display_name}
+                            </option>
+                          ))}
+                        </select>
+                      </GlassPanel>
+                    </AnimatedContent>
+                  </div>
+
+                  {/* Feature Controls - Scrollable */}
+                  <AnimatedContent distance={20} direction="up" delay={100}>
                     <GlassPanel className="p-4">
-                      <h2 className="text-lg font-medium text-gray-100 mb-3 flex items-center">
-                        <Calculator className="w-4 h-4 mr-2 text-violet-400" />
-                        Model Selection
-                      </h2>
-                      <select
-                        value={selectedModel}
-                        onChange={(e) => setSelectedModel(e.target.value)}
-                        className="w-full px-3 py-2 bg-black/50 border border-white/[0.05] rounded-lg text-gray-100 placeholder-gray-600 focus:outline-none focus:border-violet-500/30 focus:bg-black/70 transition-all duration-200 text-sm"
-                      >
-                        {models.map(model => (
-                          <option key={model.name} value={model.name} className="bg-black text-gray-100">
-                            {model.display_name}
-                          </option>
+                      <h3 className="text-base font-medium text-gray-200 mb-4">Startup Parameters</h3>
+                      <div className="space-y-4 max-h-80 overflow-y-auto pr-2 custom-scrollbar pb-2">
+                        {features.map((feature) => (
+                          <FeatureInput key={feature.name} feature={feature} formatDisplayValue={formatDisplayValue} />
                         ))}
-                      </select>
+                      </div>
+                    </GlassPanel>
+                  </AnimatedContent>
+                </div>
+
+                {/* Right Column - Results */}
+                <div className="space-y-4">
+                  
+                  {/* Risk Score Display */}
+                  <AnimatedContent distance={20} direction="up" delay={150}>
+                    <GlassPanel className="p-4 text-center">
+                      <h3 className="text-base font-medium text-gray-200 mb-4 flex items-center justify-center">
+                        <Target className="w-4 h-4 mr-2 text-violet-400" />
+                        Failure Risk
+                      </h3>
+                      
+                      {loading ? (
+                        <div className="space-y-3">
+                          <div className="animate-spin rounded-full h-12 w-12 border-2 border-violet-400 border-t-transparent mx-auto" />
+                          <p className="text-gray-400 text-sm">Calculating...</p>
+                        </div>
+                      ) : riskResult ? (
+                        <div className="space-y-4">
+                          {/* Risk Gauge */}
+                          <div className="relative w-24 h-12 mx-auto">
+                            <svg viewBox="0 0 100 50" className="w-full h-full">
+                              {/* Background arc */}
+                              <path
+                                d="M 10 40 A 30 30 0 0 1 90 40"
+                                stroke="rgba(255,255,255,0.1)"
+                                strokeWidth="8"
+                                fill="none"
+                              />
+                              {/* Risk arc */}
+                              <path
+                                d="M 10 40 A 30 30 0 0 1 90 40"
+                                stroke={getRiskColor(riskResult.risk_level)}
+                                strokeWidth="8"
+                                fill="none"
+                                strokeDasharray={`${(riskResult.risk_score * 126)} 126`}
+                                className="transition-all duration-500 ease-in-out"
+                              />
+                              {/* Needle */}
+                              <line
+                                x1="50"
+                                y1="40"
+                                x2="50"
+                                y2="20"
+                                stroke={getRiskColor(riskResult.risk_level)}
+                                strokeWidth="2"
+                                transform={`rotate(${getRiskGaugeRotation(riskResult.risk_score)} 50 40)`}
+                                className="transition-transform duration-500 ease-in-out"
+                              />
+                            </svg>
+                          </div>
+                          
+                          {/* Risk Score */}
+                          <div>
+                            <div className="text-2xl font-light text-gray-100 mb-2">
+                              {(riskResult.risk_score * 100).toFixed(1)}%
+                            </div>
+                            <div className={`
+                              inline-block px-2 py-1 rounded-full text-xs font-medium
+                              ${riskResult.risk_level === 'low' ? 'bg-green-500/20 text-green-400' :
+                                riskResult.risk_level === 'medium' ? 'bg-yellow-500/20 text-yellow-400' :
+                                'bg-red-500/20 text-red-400'}
+                            `}>
+                              {riskResult.risk_level.toUpperCase()} RISK
+                            </div>
+                          </div>
+                          
+                        </div>
+                      ) : (
+                        <div className="text-gray-400 text-sm">
+                          Adjust parameters to see risk assessment
+                        </div>
+                      )}
                     </GlassPanel>
                   </AnimatedContent>
 
                 </div>
-
-                {/* Feature Controls - Scrollable */}
-                <AnimatedContent distance={20} direction="up" delay={100}>
-                  <GlassPanel className="p-4">
-                    <h3 className="text-base font-medium text-gray-200 mb-4">Startup Parameters</h3>
-                    <div className="space-y-4 max-h-80 overflow-y-auto pr-2 custom-scrollbar pb-2">
-                      {features.map((feature, index) => (
-                        <div key={feature.name} className="space-y-2 pb-3 border-b border-white/[0.05] last:border-b-0 last:pb-0">
-                          <div className="flex justify-between items-center">
-                            <label className="text-sm font-medium text-gray-300">
-                              {feature.display_name}
-                            </label>
-                            <span className="text-sm text-gray-400">
-                              {(() => {
-                                const value = getFeatureValue(feature.name, feature.default_value);
-                                if (feature.name === "Number of Investors") {
-                                  return value.toFixed(0);
-                                }
-                                if (feature.name === "Trademarks Registered") {
-                                  return value.toFixed(0);
-                                }
-                                if (feature.name === "Number of Events") {
-                                  return value.toFixed(0);
-                                }
-                                if (feature.name === "Financing for entrepreneurs") {
-                                  return value.toFixed(1);
-                                }
-                                if (feature.name === "Governmental support and policies") {
-                                  return value.toFixed(1);
-                                }
-                                if (feature.name === "Taxes and bureaucracy") {
-                                  return value.toFixed(1);
-                                }
-                                if (feature.name === "Governmental programs") {
-                                  return value.toFixed(1);
-                                }
-                                if (feature.name === "R&D transfer") {
-                                  return value.toFixed(1);
-                                }
-                                if (feature.name === "Commercial and professional infrastructure") {
-                                  return value.toFixed(1);
-                                }
-                                if (feature.name === "Internal market dynamics") {
-                                  return value.toFixed(1);
-                                }
-                                if (feature.name === "Internal market openness") {
-                                  return value.toFixed(1);
-                                }
-                                if (feature.name === "Cultural and social norms") {
-                                  return value.toFixed(1);
-                                }
-                                return value;
-                              })()}
-                            </span>
-                          </div>
-                          
-                          {feature.type === 'slider' ? (
-                            <div className="relative">
-                              <input
-                                type="range"
-                                min={feature.min_value}
-                                max={feature.max_value}
-                                step={feature.step || 1}
-                                value={getFeatureValue(feature.name, feature.default_value)}
-                                onChange={(e) => handleFeatureChange(feature.name, parseFloat(e.target.value))}
-                                className="w-full h-2 bg-white/[0.05] rounded-lg appearance-none cursor-pointer slider"
-                              />
-                            </div>
-                          ) : (
-                            <div className="flex items-center">
-                              <button
-                                onClick={() => handleFeatureChange(feature.name, !getFeatureValue(feature.name, false))}
-                                className={`
-                                  relative inline-flex h-6 w-11 items-center rounded-full
-                                  transition-colors duration-200 ease-in-out
-                                  ${getFeatureValue(feature.name, false) 
-                                    ? 'bg-violet-500' 
-                                    : 'bg-white/[0.05]'
-                                  }
-                                `}
-                              >
-                                <span
-                                  className={`
-                                    inline-block h-4 w-4 transform rounded-full bg-white
-                                    transition-transform duration-200 ease-in-out
-                                    ${getFeatureValue(feature.name, false) ? 'translate-x-6' : 'translate-x-1'}
-                                  `}
-                                />
-                              </button>
-                              <span className="ml-3 text-sm text-gray-400">
-                                {getFeatureValue(feature.name, false) ? 'Yes' : 'No'}
-                              </span>
-                            </div>
-                          )}
-                          
-                          <p className="text-xs text-gray-500">{feature.description}</p>
-                        </div>
-                      ))}
-                    </div>
-                  </GlassPanel>
-                </AnimatedContent>
               </div>
-
-              {/* Right Column - Results */}
-              <div className="space-y-4">
-                
-                {/* Risk Score Display */}
-                <AnimatedContent distance={20} direction="up" delay={150}>
-                  <GlassPanel className="p-4 text-center">
-                    <h3 className="text-base font-medium text-gray-200 mb-4 flex items-center justify-center">
-                      <Target className="w-4 h-4 mr-2 text-violet-400" />
-                      Failure Risk
-                    </h3>
-                    
-                    {loading ? (
-                      <div className="space-y-3">
-                        <div className="animate-spin rounded-full h-12 w-12 border-2 border-violet-400 border-t-transparent mx-auto" />
-                        <p className="text-gray-400 text-sm">Calculating...</p>
-                      </div>
-                    ) : riskResult ? (
-                      <div className="space-y-4">
-                        {/* Risk Gauge */}
-                        <div className="relative w-24 h-12 mx-auto">
-                          <svg viewBox="0 0 100 50" className="w-full h-full">
-                            {/* Background arc */}
-                            <path
-                              d="M 10 40 A 30 30 0 0 1 90 40"
-                              stroke="rgba(255,255,255,0.1)"
-                              strokeWidth="8"
-                              fill="none"
-                            />
-                            {/* Risk arc */}
-                            <path
-                              d="M 10 40 A 30 30 0 0 1 90 40"
-                              stroke={getRiskColor(riskResult.risk_level)}
-                              strokeWidth="8"
-                              fill="none"
-                              strokeDasharray={`${(riskResult.risk_score * 126)} 126`}
-                              className="transition-all duration-500 ease-in-out"
-                            />
-                            {/* Needle */}
-                            <line
-                              x1="50"
-                              y1="40"
-                              x2="50"
-                              y2="20"
-                              stroke={getRiskColor(riskResult.risk_level)}
-                              strokeWidth="2"
-                              transform={`rotate(${getRiskGaugeRotation(riskResult.risk_score)} 50 40)`}
-                              className="transition-transform duration-500 ease-in-out"
-                            />
-                          </svg>
-                        </div>
-                        
-                        {/* Risk Score */}
-                        <div>
-                          <div className="text-2xl font-light text-gray-100 mb-2">
-                            {(riskResult.risk_score * 100).toFixed(1)}%
-                          </div>
-                          <div className={`
-                            inline-block px-2 py-1 rounded-full text-xs font-medium
-                            ${riskResult.risk_level === 'low' ? 'bg-green-500/20 text-green-400' :
-                              riskResult.risk_level === 'medium' ? 'bg-yellow-500/20 text-yellow-400' :
-                              'bg-red-500/20 text-red-400'}
-                          `}>
-                            {riskResult.risk_level.toUpperCase()} RISK
-                          </div>
-                        </div>
-                        
-                      </div>
-                    ) : (
-                      <div className="text-gray-400 text-sm">
-                        Adjust parameters to see risk assessment
-                      </div>
-                    )}
-                  </GlassPanel>
-                </AnimatedContent>
-
-              </div>
-            </div>
+            </form>
 
             {/* Error Display */}
             {error && (
@@ -405,6 +325,70 @@ export default function RiskCalculatorPage() {
           background: rgba(255, 255, 255, 0.3);
         }
       `}</style>
+    </div>
+  );
+}
+
+// Simplified FeatureInput component - uncontrolled
+function FeatureInput({ feature, formatDisplayValue }) {
+  const [displayValue, setDisplayValue] = useState(feature.default_value);
+  
+  if (feature.type === 'slider') {
+    return (
+      <div className="space-y-2 pb-3 border-b border-white/[0.05] last:border-b-0 last:pb-0">
+        <div className="flex justify-between items-center">
+          <label className="text-sm font-medium text-gray-300">
+            {feature.display_name}
+          </label>
+          <span className="text-sm text-gray-400">
+            {formatDisplayValue(feature, displayValue)}
+          </span>
+        </div>
+        
+        <div className="relative">
+          <input
+            name={feature.name}
+            type="range"
+            min={feature.min_value}
+            max={feature.max_value}
+            step={feature.step || 1}
+            defaultValue={feature.default_value}
+            onInput={(e) => setDisplayValue(e.target.value)}
+            className="w-full h-2 bg-white/[0.05] rounded-lg appearance-none cursor-pointer slider"
+          />
+        </div>
+        
+        <p className="text-xs text-gray-500">{feature.description}</p>
+      </div>
+    );
+  }
+  
+  // Toggle switch
+  return (
+    <div className="space-y-2 pb-3 border-b border-white/[0.05] last:border-b-0 last:pb-0">
+      <div className="flex justify-between items-center">
+        <label className="text-sm font-medium text-gray-300">
+          {feature.display_name}
+        </label>
+      </div>
+      
+      <div className="flex items-center">
+        <label className="relative inline-flex items-center cursor-pointer">
+          <input
+            name={feature.name}
+            type="checkbox"
+            defaultChecked={feature.default_value}
+            className="sr-only peer"
+          />
+          <div className="w-11 h-6 bg-white/[0.05] peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-violet-500"></div>
+          <span className="ml-3 text-sm text-gray-400">
+            <span className="peer-checked:hidden">No</span>
+            <span className="hidden peer-checked:inline">Yes</span>
+          </span>
+        </label>
+      </div>
+      
+      <p className="text-xs text-gray-500">{feature.description}</p>
     </div>
   );
 }

@@ -4,7 +4,8 @@ import pandas as pd
 import numpy as np
 from typing import Dict, Any, List
 import httpx
-import openai
+from openai import OpenAI
+
 from pathlib import Path
 import json
 import logging
@@ -12,6 +13,7 @@ from datetime import datetime
 import pickle
 
 from config import settings
+client = OpenAI(api_key=settings.openai_api_key)
 
 logger = logging.getLogger(__name__)
 
@@ -22,7 +24,7 @@ class ModelService:
         self.loaded_models = {}
         self.loaded_scalers = {}
         self.model_info = None
-        
+
     def load_model_info(self):
         """Load model information and feature lists"""
         if self.model_info is None:
@@ -83,7 +85,7 @@ class ModelService:
                     ]
                 }
         return self.model_info
-        
+
     def load_scaler(self):
         """Load the scaler for feature preprocessing"""
         if 'scaler' not in self.loaded_scalers:
@@ -96,16 +98,16 @@ class ModelService:
                 logger.warning("⚠️ Scaler not found, will use unscaled features")
                 self.loaded_scalers['scaler'] = None
         return self.loaded_scalers['scaler']
-        
+
     def load_model(self, model_name: str):
         """Load model from .pkl file"""
         if model_name in self.loaded_models:
             return self.loaded_models[model_name]
-            
+
         model_path = self.models_dir / f"{model_name}.pkl"
         if not model_path.exists():
             raise FileNotFoundError(f"Model {model_name}.pkl not found in models directory")
-            
+
         try:
             with open(model_path, 'rb') as f:
                 model = pickle.load(f)
@@ -115,16 +117,16 @@ class ModelService:
         except (pickle.UnpicklingError, EOFError, ValueError) as e:
             logger.error(f"❌ Corrupted model file: {model_name}.pkl - {e}")
             raise FileNotFoundError(f"Model {model_name}.pkl is corrupted and cannot be loaded")
-        
+
     def preprocess_data(self, df: pd.DataFrame, model_name: str = None) -> pd.DataFrame:
         """Preprocess data according to the model requirements"""
         model_info = self.load_model_info()
         scaler = self.load_scaler()
-        
+
         # Try to load the model to get the correct feature order
         try:
             model = self.load_model(model_name) if model_name else None
-            
+
             if model and hasattr(model, 'feature_names_in_'):
                 predictors = model.feature_names_in_.tolist()
                 logger.info(f"📋 Using model's stored feature names: {len(predictors)} features")
@@ -144,14 +146,14 @@ class ModelService:
         except Exception as e:
             logger.warning(f"⚠️ Could not load model to get features: {e}")
             predictors = model_info.get('predictors', [])
-        
+
         scale_features = model_info.get('scale_features', [])
         leave_unscaled = model_info.get('leave_unscaled', [])
-        
+
         # Check if we have the required columns
         available_columns = df.columns.tolist()
         missing_columns = [col for col in predictors if col not in available_columns]
-        
+
         if missing_columns:
             logger.warning(f"⚠️ Missing columns in data: {missing_columns}")
             logger.info(f"📋 Available columns: {available_columns}")
@@ -159,18 +161,18 @@ class ModelService:
             predictors = [col for col in predictors if col in available_columns]
             scale_features = [col for col in scale_features if col in available_columns]
             leave_unscaled = [col for col in leave_unscaled if col in available_columns]
-        
+
         if not predictors:
             logger.warning("⚠️ No predictors available, using all numeric columns")
             return df.select_dtypes(include=[np.number])
-        
+
         # Select only the required predictors IN THE EXACT ORDER
         # This is critical for model compatibility
         df_subset = df[predictors].copy()
-        
+
         # Handle missing values
         df_subset = df_subset.fillna(0)
-        
+
         # Scale features if scaler is available
         if scaler is not None and scale_features:
             try:
@@ -183,21 +185,21 @@ class ModelService:
                 # Continue without scaling
         else:
             logger.info("ℹ️ No scaler available, using unscaled features")
-        
+
         logger.info(f"✅ Preprocessed data shape: {df_subset.shape}")
         return df_subset
-        
+
     def predict(self, model_name: str, df: pd.DataFrame) -> np.ndarray:
         """Make predictions on the dataframe"""
         model = self.load_model(model_name)
-        
+
         # Preprocess the data
         processed_df = self.preprocess_data(df, model_name)
-        
+
         # Log the column order for debugging
         logger.info(f"📋 Processed columns order: {processed_df.columns.tolist()}")
         logger.info(f"📋 Processed data shape: {processed_df.shape}")
-        
+
         # Make predictions
         try:
             predictions = model.predict(processed_df)
@@ -208,7 +210,7 @@ class ModelService:
         except Exception as e:
             logger.error(f"❌ Error making predictions: {e}")
             logger.error(f"📋 Processed columns order: {processed_df.columns.tolist()}")
-            
+
             # Try to get expected feature names for debugging
             if hasattr(model, 'feature_names_in_'):
                 logger.error(f"📋 Model expects: {model.feature_names_in_.tolist()}")
@@ -216,18 +218,18 @@ class ModelService:
                 booster = model.get_booster()
                 if hasattr(booster, 'feature_names'):
                     logger.error(f"📋 XGBoost expects: {booster.feature_names}")
-                    
+
             raise
-        
+
         return predictions
-        
+
     def get_available_models(self) -> List[str]:
         """Get list of available models (excluding corrupted ones)"""
         available_models = []
         for model_file in self.models_dir.glob("*.pkl"):
             if not model_file.name.startswith("scaler") and not model_file.name.startswith("model_info"):
                 model_name = model_file.stem
-                
+
                 # Test if model can be loaded
                 try:
                     with open(model_file, 'rb') as f:
@@ -237,14 +239,14 @@ class ModelService:
                 except (pickle.UnpicklingError, EOFError, ValueError) as e:
                     logger.warning(f"⚠️ Skipping corrupted model: {model_name} - {e}")
                     continue
-                    
+
         return available_models
-        
+
 
 class RiskService:
     def __init__(self):
         self.model_service = ModelService()
-        
+
     def get_feature_definitions(self) -> List[Dict[str, Any]]:
         """Get feature definitions for the risk calculator"""
         return [
@@ -254,9 +256,9 @@ class RiskService:
                 "type": "slider",
                 "min_value": 0,
                 "max_value": 10,
-                "default_value": 0,
+                "default_value": 1,
                 "step": 1,
-                "description": "Number of registered trademarks"
+                "description": "Number of trademarks the company has ever registered"
             },
             {
                 "name": "Number of Events",
@@ -264,7 +266,7 @@ class RiskService:
                 "type": "slider",
                 "min_value": 0,
                 "max_value": 50,
-                "default_value": 2,
+                "default_value": 4,
                 "step": 1,
                 "description": "Number of events or activities the startup has participated in"
             },
@@ -274,7 +276,7 @@ class RiskService:
                 "type": "slider",
                 "min_value": 1.0,
                 "max_value": 7.0,
-                "default_value": 2.8,
+                "default_value": 4.0,
                 "step": 0.1,
                 "description": "The availability of financial resources—equity and debt—for small and medium enterprises (SMEs) (including grants and subsidies)"
             },
@@ -284,7 +286,7 @@ class RiskService:
                 "type": "slider",
                 "min_value": 1.0,
                 "max_value": 7.0,
-                "default_value": 2.5,
+                "default_value": 5.3,
                 "step": 0.1,
                 "description": "The extent to which public policies support entrepreneurship - entrepreneurship as a relevant economic issue"
             },
@@ -294,7 +296,7 @@ class RiskService:
                 "type": "slider",
                 "min_value": 1.0,
                 "max_value": 7.0,
-                "default_value": 2.2,
+                "default_value": 2.5,
                 "step": 0.1,
                 "description": "The extent to which public policies support entrepreneurship - taxes or regulations are either size-neutral or encourage new and SMEs"
             },
@@ -304,7 +306,7 @@ class RiskService:
                 "type": "slider",
                 "min_value": 1.0,
                 "max_value": 7.0,
-                "default_value": 2.8,
+                "default_value": 4.8,
                 "step": 0.1,
                 "description": "The presence and quality of programs directly assisting SMEs at all levels of government (national, regional, municipal)"
             },
@@ -314,7 +316,7 @@ class RiskService:
                 "type": "slider",
                 "min_value": 1.0,
                 "max_value": 7.0,
-                "default_value": 2.5,
+                "default_value": 3.1,
                 "step": 0.1,
                 "description": "The extent to which national research and development will lead to new commercial opportunities and is available to SMEs"
             },
@@ -384,7 +386,7 @@ class RiskService:
                 "type": "slider",
                 "min_value": 1.0,
                 "max_value": 7.0,
-                "default_value": 2.8,
+                "default_value": 3.6,
                 "step": 0.1,
                 "description": "The extent to which social and cultural norms encourage or allow actions leading to new business methods or activities that can potentially increase personal wealth and income"
             },
@@ -431,36 +433,36 @@ class RiskService:
                 "description": "Whether this is a food and restaurant business"
             }
         ]
-    
+
     def get_default_values(self) -> Dict[str, Any]:
         """Get default values for all features"""
         features = self.get_feature_definitions()
         defaults = {}
         for feature in features:
             defaults[feature["name"]] = feature["default_value"]
-        
+
         return defaults
-    
+
     def calculate_risk(self, feature_values: Dict[str, Any], model_name: str = "xgboost_model") -> Dict[str, Any]:
         """Calculate risk score from feature values"""
-        
+
         # Get default values and update with provided values
         full_features = self.get_default_values()
         full_features.update(feature_values)
-        
+
         # Convert boolean values to integers
         for key, value in full_features.items():
             if isinstance(value, bool):
                 full_features[key] = int(value)
-        
+
         # Create DataFrame
         df = pd.DataFrame([full_features])
-        
+
         # Get probability prediction instead of binary prediction
         try:
             model = self.model_service.load_model(model_name)
             processed_df = self.model_service.preprocess_data(df, model_name)
-            
+
             # Use predict_proba if available (for probability scores)
             if hasattr(model, 'predict_proba'):
                 probabilities = model.predict_proba(processed_df)
@@ -472,13 +474,13 @@ class RiskService:
                 predictions = model.predict(processed_df)
                 risk_score = float(predictions[0])
                 logger.info(f"📊 Binary prediction: {risk_score}")
-                
+
         except Exception as e:
             logger.error(f"❌ Error getting probability prediction: {e}")
             # Fallback to original method
             predictions = self.model_service.predict(model_name, df)
             risk_score = float(predictions[0])
-        
+
         # Determine risk level based on probability
         if risk_score < 0.3:
             risk_level = "low"
@@ -486,7 +488,7 @@ class RiskService:
             risk_level = "medium"
         else:
             risk_level = "high"
-        
+
         return {
             "risk_score": risk_score,
             "risk_level": risk_level
@@ -495,8 +497,8 @@ class RiskService:
 class SentimentService:
     def __init__(self):
         if settings.openai_api_key:
-            openai.api_key = settings.openai_api_key
-            
+            self.client = OpenAI(api_key=settings.openai_api_key)
+
     async def search_web(self, query: str) -> List[Dict[str, str]]:
         if not settings.serper_api_key:
             # Fallback to mock data for demo
@@ -505,7 +507,7 @@ class SentimentService:
                 {"title": f"{query} quarterly report", "snippet": "Strong performance in Q4..."},
                 {"title": f"Market analysis: {query}", "snippet": "Analysts remain optimistic..."}
             ]
-            
+
         async with httpx.AsyncClient() as client:
             response = await client.post(
                 "https://google.serper.dev/search",
@@ -515,14 +517,14 @@ class SentimentService:
             data = response.json()
             return [{"title": r.get("title", ""), "snippet": r.get("snippet", "")} 
                     for r in data.get("organic", [])]
-            
+
     async def analyze_sentiment(self, company_name: str) -> Dict[str, Any]:
         # Search for web content
         web_results = await self.search_web(company_name)
-        
+
         # Combine snippets for analysis
         content = "\n".join([f"{r['title']}: {r['snippet']}" for r in web_results])
-        
+
         # Analyze sentiment (mock if no API key)
         if not settings.openai_api_key:
             # Demo sentiment analysis
@@ -535,19 +537,17 @@ class SentimentService:
             ]
         else:
             # Real OpenAI analysis
-            response = openai.ChatCompletion.create(
-                model="gpt-3.5-turbo",
-                messages=[
-                    {"role": "system", "content": "Analyze the sentiment and risk level of the company based on the provided text. Return a JSON with sentiment_score (0-1), risk_level (low/medium/high), and contributing_factors (list of strings)."},
-                    {"role": "user", "content": f"Company: {company_name}\n\nContent:\n{content}"}
-                ],
-                temperature=0.3
-            )
+            response = client.chat.completions.create(model="gpt-3.5-turbo",
+            messages=[
+                {"role": "system", "content": "Analyze the sentiment and risk level of the company based on the provided text. Return a JSON with sentiment_score (0-1), risk_level (low/medium/high), and contributing_factors (list of strings)."},
+                {"role": "user", "content": f"Company: {company_name}\n\nContent:\n{content}"}
+            ],
+            temperature=0.3)
             analysis = json.loads(response.choices[0].message.content)
             sentiment_score = analysis["sentiment_score"]
             risk_level = analysis["risk_level"]
             factors = analysis["contributing_factors"]
-            
+
         return {
             "company_name": company_name,
             "sentiment_score": sentiment_score,
