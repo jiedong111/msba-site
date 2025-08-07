@@ -1,5 +1,6 @@
-import { useState } from 'react';
-import { Search, TrendingUp, TrendingDown, AlertTriangle, CheckCircle, Globe } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Search, TrendingUp, TrendingDown, AlertTriangle, CheckCircle, Globe, BarChart3, Activity } from 'lucide-react';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Area, AreaChart } from 'recharts';
 import { analyzeSentiment } from '../services/api';
 import FadeContent from '../components/ui/FadeContent';
 import AnimatedContent from '../components/ui/AnimatedContent';
@@ -10,6 +11,8 @@ export default function SentimentAnalysisPage() {
   const [loading, setLoading] = useState(false);
   const [results, setResults] = useState(null);
   const [error, setError] = useState(null);
+  const [temporalData, setTemporalData] = useState(null);
+  const [loadingTemporal, setLoadingTemporal] = useState(false);
 
   const handleAnalysis = async (e) => {
     e.preventDefault();
@@ -27,6 +30,46 @@ export default function SentimentAnalysisPage() {
       setLoading(false);
     }
   };
+
+  // Fetch temporal sentiment data when regular analysis completes
+  const fetchTemporalSentiment = async () => {
+    if (!companyName.trim()) return;
+    
+    setLoadingTemporal(true);
+    try {
+      const response = await fetch(`/api/sentiment/temporal/${encodeURIComponent(companyName)}?months=6`);
+      if (!response.ok) throw new Error('Failed to fetch temporal data');
+      
+      const data = await response.json();
+      
+      // Transform for Recharts
+      const chartData = data.data.map(d => ({
+        period: d.period.split(' ')[0].substring(0, 3), // Short month name
+        fullPeriod: d.period,
+        sentiment: parseFloat((d.sentiment * 100).toFixed(1)),
+        ma: parseFloat((d.ma * 100).toFixed(1)),
+        confidence: parseFloat((d.confidence * 100).toFixed(0)),
+        sources: d.sources
+      }));
+      
+      setTemporalData({
+        chart: chartData,
+        stats: data.stats,
+        company: data.company
+      });
+    } catch (error) {
+      console.error('Failed to fetch temporal sentiment:', error);
+    } finally {
+      setLoadingTemporal(false);
+    }
+  };
+
+  // Trigger temporal analysis when regular analysis completes
+  useEffect(() => {
+    if (results) {
+      fetchTemporalSentiment();
+    }
+  }, [results]);
 
   const getRiskIcon = (riskLevel) => {
     switch (riskLevel) {
@@ -151,8 +194,162 @@ export default function SentimentAnalysisPage() {
         {/* Results */}
         {results && (
           <div className="mt-12 space-y-6">
+            {/* Temporal Sentiment Wave */}
+            {loadingTemporal ? (
+              <AnimatedContent distance={20} direction="up" delay={150}>
+                <GlassPanel className="p-8">
+                  <div className="flex items-center justify-center h-64">
+                    <div className="space-y-4 text-center">
+                      <div className="animate-spin rounded-full h-12 w-12 border-4 border-violet-400 border-t-transparent mx-auto" />
+                      <p className="text-gray-400">Analyzing historical sentiment patterns...</p>
+                    </div>
+                  </div>
+                </GlassPanel>
+              </AnimatedContent>
+            ) : temporalData && (
+              <AnimatedContent distance={20} direction="up" delay={150}>
+                <GlassPanel className="p-8">
+                  <h2 className="text-xl font-medium text-gray-100 mb-6 flex items-center">
+                    <Activity className="w-5 h-5 mr-2 text-violet-400" />
+                    Sentiment Trend Analysis
+                  </h2>
+                  
+                  {/* Stats Cards */}
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                    <div className="bg-gray-800/20 p-4 rounded-xl border border-white/[0.05]">
+                      <p className="text-gray-500 text-sm">Current</p>
+                      <p className="text-2xl font-light text-violet-400">
+                        {(temporalData.stats.current * 100).toFixed(1)}%
+                      </p>
+                    </div>
+                    <div className="bg-gray-800/20 p-4 rounded-xl border border-white/[0.05]">
+                      <p className="text-gray-500 text-sm">Average</p>
+                      <p className="text-2xl font-light text-gray-100">
+                        {(temporalData.stats.mean * 100).toFixed(1)}%
+                      </p>
+                    </div>
+                    <div className="bg-gray-800/20 p-4 rounded-xl border border-white/[0.05]">
+                      <p className="text-gray-500 text-sm">Volatility</p>
+                      <p className="text-2xl font-light text-yellow-400">
+                        {temporalData.stats.volatility}
+                      </p>
+                    </div>
+                    <div className="bg-gray-800/20 p-4 rounded-xl border border-white/[0.05]">
+                      <p className="text-gray-500 text-sm">Trend</p>
+                      <div className="flex items-center space-x-2">
+                        {temporalData.stats.trend === 'rising' ? (
+                          <TrendingUp className="w-5 h-5 text-green-400" />
+                        ) : temporalData.stats.trend === 'falling' ? (
+                          <TrendingDown className="w-5 h-5 text-red-400" />
+                        ) : (
+                          <BarChart3 className="w-5 h-5 text-gray-400" />
+                        )}
+                        <span className="text-lg font-light text-gray-100 capitalize">
+                          {temporalData.stats.trend}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {/* Chart */}
+                  <div className="h-80">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <AreaChart data={temporalData.chart}>
+                        <defs>
+                          <linearGradient id="sentGradient" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.3}/>
+                            <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0.05}/>
+                          </linearGradient>
+                          <linearGradient id="maGradient" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="5%" stopColor="#10b981" stopOpacity={0.2}/>
+                            <stop offset="95%" stopColor="#10b981" stopOpacity={0.05}/>
+                          </linearGradient>
+                        </defs>
+                        
+                        <CartesianGrid 
+                          strokeDasharray="3 3" 
+                          stroke="rgba(255,255,255,0.03)" 
+                          vertical={false}
+                        />
+                        
+                        <XAxis 
+                          dataKey="period" 
+                          stroke="rgba(255,255,255,0.4)"
+                          tick={{ fill: '#9ca3af', fontSize: 12 }}
+                          axisLine={{ stroke: 'rgba(255,255,255,0.1)' }}
+                        />
+                        
+                        <YAxis 
+                          stroke="rgba(255,255,255,0.4)"
+                          tick={{ fill: '#9ca3af', fontSize: 12 }}
+                          axisLine={{ stroke: 'rgba(255,255,255,0.1)' }}
+                          domain={[0, 100]}
+                          tickFormatter={(value) => `${value}%`}
+                        />
+                        
+                        <Tooltip 
+                          contentStyle={{
+                            backgroundColor: 'rgba(0,0,0,0.9)',
+                            border: '1px solid rgba(255,255,255,0.1)',
+                            borderRadius: '12px',
+                            padding: '12px',
+                            fontSize: '12px'
+                          }}
+                          formatter={(value, name) => {
+                            if (name === 'sentiment') return [`${value}%`, 'Sentiment'];
+                            if (name === 'ma') return [`${value}%`, 'Moving Average'];
+                            return [value, name];
+                          }}
+                          labelFormatter={(label, payload) => {
+                            const data = payload?.[0]?.payload;
+                            return data ? `${data.fullPeriod} (${data.sources} sources)` : label;
+                          }}
+                        />
+                        
+                        <Area
+                          type="monotone"
+                          dataKey="sentiment"
+                          stroke="#8b5cf6"
+                          strokeWidth={2}
+                          fill="url(#sentGradient)"
+                          name="sentiment"
+                        />
+                        
+                        {/* Moving Average Line - We'll overlay this as another Area with no fill */}
+                        <Area
+                          type="monotone"
+                          dataKey="ma"
+                          stroke="#10b981"
+                          strokeDasharray="4 4"
+                          strokeWidth={1.5}
+                          fill="none"
+                          name="ma"
+                        />
+                      </AreaChart>
+                    </ResponsiveContainer>
+                  </div>
+                  
+                  <div className="mt-4 flex items-center justify-between">
+                    <p className="text-gray-500 text-xs">
+                      * Analysis based on temporal search results for each period
+                    </p>
+                    <div className="flex items-center space-x-4 text-xs">
+                      <div className="flex items-center space-x-2">
+                        <div className="w-3 h-0.5 bg-violet-400 rounded"></div>
+                        <span className="text-gray-500">Sentiment</span>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <div className="w-3 h-0.5 bg-green-400 rounded" style={{backgroundImage: 'repeating-linear-gradient(90deg, transparent, transparent 2px, #10b981 2px, #10b981 4px)'}}></div>
+                        <span className="text-gray-500">3-Period MA</span>
+                      </div>
+                    </div>
+                  </div>
+                </GlassPanel>
+              </AnimatedContent>
+            )}
+
             {/* Contributing Factors */}
-            <AnimatedContent distance={20} direction="up" delay={150}>
+            <AnimatedContent distance={20} direction="up" delay={200}>
               <GlassPanel className="p-8">
                 <h2 className="text-xl font-medium text-gray-100 mb-6">Contributing Factors</h2>
                 <div className="space-y-3">
@@ -167,7 +364,7 @@ export default function SentimentAnalysisPage() {
             </AnimatedContent>
 
             {/* Web Sources */}
-            <AnimatedContent distance={20} direction="up" delay={200}>
+            <AnimatedContent distance={20} direction="up" delay={250}>
               <GlassPanel className="p-8">
                 <h2 className="text-xl font-medium text-gray-100 mb-6">Web Sources</h2>
                 <div className="space-y-4">

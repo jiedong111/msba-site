@@ -11,6 +11,7 @@ from models import (
     RiskCalculateRequest, RiskCalculateResponse, RiskFeature
 )
 from services import ModelService, SentimentService, RiskService
+from temporal_sentiment_simple import TemporalSentimentSimple
 from config import settings
 
 # Configure logging
@@ -125,6 +126,33 @@ async def get_risk_models():
     except Exception as e:
         logger.error(f"❌ Error getting risk models: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Error getting models: {str(e)}")
+
+
+@app.get("/api/sentiment/temporal/{company}")
+async def get_temporal_sentiment(company: str, months: int = 6):
+    """Get temporal sentiment wave for a company"""
+    logger.info(f"📈 Temporal sentiment request for {company} ({months} months)")
+    
+    try:
+        # Validate parameters
+        if months < 1 or months > 12:
+            raise HTTPException(status_code=400, detail="Months must be between 1 and 12")
+        
+        if not company or len(company.strip()) < 2:
+            raise HTTPException(status_code=400, detail="Company name must be at least 2 characters")
+        
+        service = TemporalSentimentSimple()
+        result = await service.get_temporal_wave(company, months)
+        
+        logger.info(f"📊 Temporal analysis complete for {company}: trend={result['stats']['trend']}")
+        return result
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"❌ Temporal sentiment analysis failed: {str(e)}")
+        logger.error(f"🔍 Full traceback: {traceback.format_exc()}")
+        raise HTTPException(status_code=500, detail=f"Temporal analysis failed: {str(e)}")
 
 
 if __name__ == "__main__":
